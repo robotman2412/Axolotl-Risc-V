@@ -1,4 +1,11 @@
 
+/*
+	This work ("Axolotl³²") is licensed under a Creative Commons
+	Attribution-NonCommercial-ShareAlike 4.0 International License:
+	
+	http://creativecommons.org/licenses/by-nc-sa/4.0/
+*/
+
 // Risc-V opcodes.
 parameter RV_OP_LOAD		= 'b00000;
 parameter RV_OP_LOAD_FP		= 'b00001;
