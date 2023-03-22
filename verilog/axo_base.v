@@ -7,39 +7,39 @@
 */
 
 // Risc-V opcodes.
-parameter RV_OP_LOAD		= 'b00000;
-parameter RV_OP_LOAD_FP		= 'b00001;
-parameter RV_OP_custom_0	= 'b00010;
-parameter RV_OP_MISC_MEM	= 'b00011;
-parameter RV_OP_OP_IMM		= 'b00100;
-parameter RV_OP_AUIPC		= 'b00101;
-parameter RV_OP_OP_IMM_32	= 'b00110;
-parameter RV_OP_STORE		= 'b01000;
-parameter RV_OP_STORE_FP	= 'b01001;
-parameter RV_OP_custom_1	= 'b01010;
-parameter RV_OP_AMO			= 'b01011;
-parameter RV_OP_OP			= 'b01100;
-parameter RV_OP_LUI			= 'b01101;
-parameter RV_OP_OP_32		= 'b01110;
-parameter RV_OP_MADD		= 'b10000;
-parameter RV_OP_MSUB		= 'b10001;
-parameter RV_OP_NMSUB		= 'b10010;
-parameter RV_OP_NMADD		= 'b10011;
-parameter RV_OP_OP_FP		= 'b10100;
-parameter RV_OP_BRANCH		= 'b11000;
-parameter RV_OP_JALR		= 'b11001;
-parameter RV_OP_JAL			= 'b11011;
-parameter RV_OP_SYSTEM		= 'b11100;
+`define RV_OP_LOAD		'b00000
+`define RV_OP_LOAD_FP	'b00001
+`define RV_OP_custom_0	'b00010
+`define RV_OP_MISC_MEM	'b00011
+`define RV_OP_OP_IMM	'b00100
+`define RV_OP_AUIPC		'b00101
+`define RV_OP_OP_IMM_32	'b00110
+`define RV_OP_STORE		'b01000
+`define RV_OP_STORE_FP	'b01001
+`define RV_OP_custom_1	'b01010
+`define RV_OP_AMO		'b01011
+`define RV_OP_OP		'b01100
+`define RV_OP_LUI		'b01101
+`define RV_OP_OP_32		'b01110
+`define RV_OP_MADD		'b10000
+`define RV_OP_MSUB		'b10001
+`define RV_OP_NMSUB		'b10010
+`define RV_OP_NMADD		'b10011
+`define RV_OP_OP_FP		'b10100
+`define RV_OP_BRANCH	'b11000
+`define RV_OP_JALR		'b11001
+`define RV_OP_JAL		'b11011
+`define RV_OP_SYSTEM	'b11100
 
 // Risc-V ALU funct3 values.
-parameter RV_ALU_ADD		= 'b000;
-parameter RV_ALU_SLL		= 'b001;
-parameter RV_ALU_SLT		= 'b010;
-parameter RV_ALU_SLTU		= 'b011;
-parameter RV_ALU_XOR		= 'b100;
-parameter RV_ALU_SRL		= 'b101;
-parameter RV_ALU_OR			= 'b110;
-parameter RV_ALU_AND		= 'b111;
+`define RV_ALU_ADD		'b000
+`define RV_ALU_SLL		'b001
+`define RV_ALU_SLT		'b010
+`define RV_ALU_SLTU		'b011
+`define RV_ALU_XOR		'b100
+`define RV_ALU_SRL		'b101
+`define RV_ALU_OR		'b110
+`define RV_ALU_AND		'b111
 
 
 
@@ -80,6 +80,9 @@ module axo_regfile#(
 	// Read data 2.
 	output wire[XLEN-1:0] dout2
 );
+	
+	// Used for resetting.
+	integer i;
 	
 	initial begin
 		// Initially set regfile to all 0.
@@ -126,8 +129,6 @@ module axo_alu#(
 	// Turns ADD into sub, SRL into SRA.
 	input  wire           inst30,
 	
-	// Perform OP-IMM (default is OP).
-	input  wire           op_imm,
 	// Perform subtraction despite `funct3` and `inst30`.
 	input  wire           op_branch,
 	
@@ -137,12 +138,12 @@ module axo_alu#(
 	input  wire[XLEN-1:0] in2,
 	
 	// Output.
-	output wire[XLEN-1:0] out,
-	// Carry flag.
-	output wire           cflag,
-	// Zero flag.
-	output wire           zflag
+	output wire[XLEN-1:0] out
 );
+	// Signed copy of inputs.
+	wire signed[31:0] sin1 = in1;
+	wire signed[31:0] sin2 = in2;
+	
 	// Invert branch condition.
 	wire inv_br    = funct3[0];
 	// Use signed comparison.
@@ -151,18 +152,19 @@ module axo_alu#(
 	wire diff_br   = funct3[2];
 	
 	// Modifiable copy of `funct3`.
-	wire funct3_tmp = !op_branch ? funct3
-					: signed_br ? RV_ALU_SLT
-					: RV_ALU_SLTU;
+	wire[2:0] funct3_tmp = !op_branch ? funct3
+						: signed_br ? `RV_ALU_SLT
+						: `RV_ALU_SLTU;
 	
 	// XLEN+1-bit output (to get carry from ADD/SUB).
-	reg out_tmp[XLEN:0];
+	reg[XLEN:0] out_tmp;
 	// Comparison result device.
 	reg cmp_res;
 	
 	// Extract flags.
-	assign cflag = out_tmp[XLEN];
-	assign zflag = out_tmp[XLEN-1:0] == 0;
+	wire cflag = out_tmp[XLEN];
+	wire zflag = out_tmp[XLEN-1:0] == 0;
+	integer i;
 	
 	// Create output bits.
 	assign out = (funct3_tmp[2:1] == 'b01) ? cmp_res : out_tmp[XLEN-1:0];
@@ -171,21 +173,28 @@ module axo_alu#(
 		// Perform computations.
 		case(funct3_tmp)
 			// Addition (inst30=0) / subtraction (inst30=1).
-			RV_ALU_ADD:  out_tmp = inst30 ? in1 - in2 : in1 + in2;
+			`RV_ALU_ADD:  out_tmp = inst30 ? in1 - in2 : in1 + in2;
 			// Logical shift left.
-			RV_ALU_SLL:  out_tmp = in1 << (in2 & 31);
+			`RV_ALU_SLL:  out_tmp = in1 << (in2 & 31);
 			// Set less than (signed compare).
-			RV_ALU_SLT:  out_tmp = (in1 ^ (1 << (XLEN-1))) - (in2 ^ (1 << (XLEN-1)));
+			`RV_ALU_SLT:  out_tmp = (in1 ^ (1 << (XLEN-1))) - (in2 ^ (1 << (XLEN-1)));
 			// Set less than (unsigned compare).
-			RV_ALU_SLTU: out_tmp = in1 - in2;
+			`RV_ALU_SLTU: out_tmp = in1 - in2;
 			// Bitwise XOR.
-			RV_ALU_XOR:  out_tmp = in1 ^ in2;
+			`RV_ALU_XOR:  out_tmp = in1 ^ in2;
 			// Logical (inst30=0) / arithmetic (inst30=1) shift right.
-			RV_ALU_SRL:  out_tmp = in1 >> (in2 & 31);
+			`RV_ALU_SRL:
+				if (inst30) begin
+					// Arithmetic shift right.
+					out_tmp = sin1 >>> (in2 & 31);
+				end else begin
+					// Logical shift right.
+					out_tmp = in1 >> (in2 & 31);
+				end
 			// Bitwise OR.
-			RV_ALU_OR:   out_tmp = in1 | in2;
+			`RV_ALU_OR:   out_tmp = in1 | in2;
 			// Bitwise AND.
-			RV_ALU_AND:  out_tmp = in1 & in2;
+			`RV_ALU_AND:  out_tmp = in1 & in2;
 		endcase
 	end
 	
@@ -255,14 +264,14 @@ module axo32_decd_imm32(
 	// Bits 12-19.
 	assign imm[19:12] =
 				is_u_type ? inst[19:12] :
-				is_j_type ? inst[19:12] : inst[31] * 'h2f;
+				is_j_type ? inst[19:12] : inst[31] * 'hff;
 	
 	// Bits 20-30.
 	assign imm[30:20] =
-				is_u_type ? inst[30:20] : inst[31] * 'h3ff;
+				is_u_type ? inst[30:20] : inst[31] * 'h7ff;
 	
 	// Bit 31.
-	assign imm[10:5] = inst[31];
+	assign imm[31] = inst[31];
 endmodule
 
 
@@ -293,8 +302,25 @@ module axo32_decoder(
 	// Operation must use 32 bits instead of XLEN (64 / 128).
 	output wire op_32bit,
 	
+	// ALU is OP-IMM* type.
+	output wire       op_is_imm,
+	
 	// Embedded immediate value, if any.
-	output wire[31:0] imm
+	output wire[31:0] imm,
+	
+	// Instruction stores to `rd`.
+	output wire       rd_we,
+	// Instruction uses value of `rs1`.
+	output wire       rs1_re,
+	// Instruction uses values of both `rs1` and `rs2`.
+	output wire       rs2_re,
+	
+	// Destination register, if any.
+	output wire[4:0]  rd,
+	// First source register, if any.
+	output wire[4:0]  rs1,
+	// Second source register, if any.
+	output wire[4:0]  rs2
 );
 	
 	// Stores the values for is_*_type and op_will_*.
@@ -320,28 +346,29 @@ module axo32_decoder(
 	
 	// Determine instruction encoding type.
 	always @(*) begin
-		case(inst[6:2])                  // v rwaf RIS BUJ
-			RV_OP_LOAD:			is_type_reg = 'b1_1000_010_000;
-			RV_OP_MISC_MEM:		is_type_reg = 'b1_0000_010_000;
-			RV_OP_OP_IMM:		is_type_reg = 'b1_0010_010_000;
-			RV_OP_OP_IMM_32:	is_type_reg = 'b1_0010_010_000;
-			RV_OP_AUIPC:		is_type_reg = 'b1_0000_000_010;
-			RV_OP_STORE:		is_type_reg = 'b1_0100_001_000;
-			RV_OP_OP:			is_type_reg = 'b1_0010_100_000;
-			RV_OP_OP_32:		is_type_reg = 'b1_0010_100_000;
-			RV_OP_LUI:			is_type_reg = 'b1_1000_000_010;
-			RV_OP_BRANCH:		is_type_reg = 'b1_0011_000_100;
-			RV_OP_JALR:			is_type_reg = 'b1_0001_010_000;
-			RV_OP_JAL:			is_type_reg = 'b1_0001_000_001;
-			RV_OP_SYSTEM:		is_type_reg = 'b1_0000_000_000;
-			default:			is_type_reg = 'b0_0000_000_000;
+		if (inst[1:0] != 'b11) is_type_reg = 0;
+		else case(inst[6:2])                 // v rwaf RIS BUJ
+			`RV_OP_LOAD:		is_type_reg = 'b1_1000_010_000;
+			`RV_OP_MISC_MEM:	is_type_reg = 'b1_0000_010_000;
+			`RV_OP_OP_IMM:		is_type_reg = 'b1_0010_010_000;
+			`RV_OP_OP_IMM_32:	is_type_reg = 'b1_0010_010_000;
+			`RV_OP_AUIPC:		is_type_reg = 'b1_0000_000_010;
+			`RV_OP_STORE:		is_type_reg = 'b1_0100_001_000;
+			`RV_OP_OP:			is_type_reg = 'b1_0010_100_000;
+			`RV_OP_OP_32:		is_type_reg = 'b1_0010_100_000;
+			`RV_OP_LUI:			is_type_reg = 'b1_1000_000_010;
+			`RV_OP_BRANCH:		is_type_reg = 'b1_0011_000_100;
+			`RV_OP_JALR:		is_type_reg = 'b1_0001_010_000;
+			`RV_OP_JAL:			is_type_reg = 'b1_0001_000_001;
+			`RV_OP_SYSTEM:		is_type_reg = 'b1_0000_000_000;
+			default: is_type_reg = 0;
 		endcase
 	end
-	assign op_32bit = inst[6:2] == RV_OP_OP_IMM_32 || inst[6:2] == RV_OP_OP_32;
+	assign op_32bit = inst[6:2] == `RV_OP_OP_IMM_32 || inst[6:2] == `RV_OP_OP_32;
 	
 	// Detect ECALL and EBREAK.
-	assign op_is_ebreak = inst[6:2] == RV_OP_SYSTEM && inst[20] == 1;
-	assign op_is_ecall  = inst[6:2] == RV_OP_SYSTEM && inst[20] == 0;
+	assign op_is_ebreak = inst[6:2] == `RV_OP_SYSTEM && inst[20] == 1;
+	assign op_is_ecall  = inst[6:2] == `RV_OP_SYSTEM && inst[20] == 0;
 	
 	// Compute imm value.
 	axo32_decd_imm32 decd_imm32(
@@ -355,4 +382,14 @@ module axo32_decoder(
 		is_j_type
 	);
 	
+	// Determine access characteristics.
+	assign op_is_imm = op_uses_alu & !is_r_type;
+	assign rd_we  = !is_s_type && !is_b_type;
+	assign rs1_re = !is_u_type && !is_j_type;
+	assign rs2_re = !is_u_type && !is_j_type && !is_i_type;
+	
+	// Get register indices.
+	assign rd  = inst[11:7];
+	assign rs1 = inst[19:15];
+	assign rs2 = inst[24:20];
 endmodule
