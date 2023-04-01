@@ -110,6 +110,7 @@ module axo_regfile#(
 			// Except for `x0`, write handler.
 			if (rd != 0 && we) begin
 				data[rd] = din;
+				$display("x%0d = %08h", rd, din);
 			end
 		end
 	end
@@ -302,7 +303,11 @@ module axo32_decoder(
 	// Operation must use 32 bits instead of XLEN (64 / 128).
 	output wire op_32bit,
 	
-	// ALU is OP-IMM* type.
+	// OP is OP-LUI* or OP-AUIPC* type.
+	output wire       op_is_lui,
+	// OP is OP-AUIPC* type.
+	output wire       op_is_auipc,
+	// ALU OP is OP-IMM* type.
 	output wire       op_is_imm,
 	
 	// Embedded immediate value, if any.
@@ -356,7 +361,7 @@ module axo32_decoder(
 			`RV_OP_STORE:		is_type_reg = 'b1_0100_001_000;
 			`RV_OP_OP:			is_type_reg = 'b1_0010_100_000;
 			`RV_OP_OP_32:		is_type_reg = 'b1_0010_100_000;
-			`RV_OP_LUI:			is_type_reg = 'b1_1000_000_010;
+			`RV_OP_LUI:			is_type_reg = 'b1_0000_000_010;
 			`RV_OP_BRANCH:		is_type_reg = 'b1_0011_000_100;
 			`RV_OP_JALR:		is_type_reg = 'b1_0001_010_000;
 			`RV_OP_JAL:			is_type_reg = 'b1_0001_000_001;

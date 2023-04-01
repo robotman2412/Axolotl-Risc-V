@@ -1,4 +1,11 @@
 
+/*
+	This work ("Axolotl³²") is licensed under a Creative Commons
+	Attribution-NonCommercial-ShareAlike 4.0 International License:
+	
+	http://creativecommons.org/licenses/by-nc-sa/4.0/
+*/
+
 `include "axo_base.v"
 
 module aluprinter(
