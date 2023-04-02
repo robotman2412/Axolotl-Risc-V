@@ -75,8 +75,9 @@ module axo_rv32i(
 	wire op_uses_alu, op_does_flowctl;
 	wire op_is_ecall, op_is_ebreak;
 	wire op_32bit;
+	wire op_is_lui, op_is_auipc, op_is_imm;
 	wire[31:0] imm;
-	wire op_is_imm, rd_we, rs1_re, rs2_re;
+	wire rd_we, rs1_re, rs2_re;
 	wire[4:0] rd, rs1, rs2;
 	
 	// Wires from ALU.
@@ -120,8 +121,8 @@ module axo_rv32i(
 		op_is_ecall, op_is_ebreak,
 		op_32bit,
 		
-		op_is_imm,
-		imm,
+		op_is_lui, op_is_auipc,
+		op_is_imm, imm,
 		
 		rd_we, rs1_re, rs2_re,
 		rd,    rs1,    rs2
