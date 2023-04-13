@@ -130,8 +130,10 @@ module axo_alu#(
 	// Turns ADD into sub, SRL into SRA.
 	input  wire           inst30,
 	
-	// Perform subtraction despite `funct3` and `inst30`.
+	// Decode branch conditions.
 	input  wire           op_branch,
+	// Opcode is OP-IMM.
+	input  wire           op_is_imm,
 	
 	// First (lefthand) input.
 	input  wire[XLEN-1:0] in1,
@@ -148,8 +150,8 @@ module axo_alu#(
 	// Invert branch condition.
 	wire inv_br    = funct3[0];
 	// Use signed comparison.
-	wire signed_br = funct3[1];
-	// Less than (signed_br=0) / greater than or equal to (signed_br=1).
+	wire signed_br = !funct3[1];
+	// Less than (inv_br=0) / greater than or equal to (inv_br=1).
 	wire diff_br   = funct3[2];
 	
 	// Modifiable copy of `funct3`.
@@ -157,60 +159,63 @@ module axo_alu#(
 						: signed_br ? `RV_ALU_SLT
 						: `RV_ALU_SLTU;
 	
-	// XLEN+1-bit output (to get carry from ADD/SUB).
-	reg[XLEN:0] out_tmp;
-	// Comparison result device.
-	reg cmp_res;
-	
-	// Extract flags.
-	wire cflag = out_tmp[XLEN];
-	wire zflag = out_tmp[XLEN-1:0] == 0;
-	integer i;
-	
-	// Create output bits.
-	assign out = (funct3_tmp[2:1] == 'b01) ? cmp_res : out_tmp[XLEN-1:0];
+	// Output intermediate.
+	reg[XLEN-1:0] out_tmp;
+	assign out = out_tmp;
 	
 	always @(*) begin
-		// Perform computations.
-		case(funct3_tmp)
-			// Addition (inst30=0) / subtraction (inst30=1).
-			`RV_ALU_ADD:  out_tmp = inst30 ? in1 - in2 : in1 + in2;
-			// Logical shift left.
-			`RV_ALU_SLL:  out_tmp = in1 << (in2 & 31);
-			// Set less than (signed compare).
-			`RV_ALU_SLT:  out_tmp = (in1 ^ (1 << (XLEN-1))) - (in2 ^ (1 << (XLEN-1)));
-			// Set less than (unsigned compare).
-			`RV_ALU_SLTU: out_tmp = in1 - in2;
-			// Bitwise XOR.
-			`RV_ALU_XOR:  out_tmp = in1 ^ in2;
-			// Logical (inst30=0) / arithmetic (inst30=1) shift right.
-			`RV_ALU_SRL:
-				if (inst30) begin
-					// Arithmetic shift right.
-					out_tmp = sin1 >>> (in2 & 31);
-				end else begin
-					// Logical shift right.
-					out_tmp = in1 >> (in2 & 31);
-				end
-			// Bitwise OR.
-			`RV_ALU_OR:   out_tmp = in1 | in2;
-			// Bitwise AND.
-			`RV_ALU_AND:  out_tmp = in1 & in2;
-		endcase
-	end
-	
-	always @(*) begin
-		// Evaluate conditionals.
 		if (op_branch) begin
-			// Branch conditionals.
-			if (diff_br) begin
-				cmp_res = inv_br ^ (!zflag & !cflag);
-			end else begin
-				cmp_res = inv_br ^ zflag;
-			end
+			// Evaluate branch.
+			casex(funct3)
+				// BEQ
+				3'b0x0: out_tmp = in1 == in2  ?1:0;
+				// BNE
+				3'b0x1: out_tmp = in1 != in2  ?1:0;
+				// BLT
+				3'b100: out_tmp = sin1 < sin2  ?1:0;
+				// BGE
+				3'b101: out_tmp = sin1 >= sin2  ?1:0;
+				// BLTU
+				3'b110: out_tmp = in1 < in2  ?1:0;
+				// BGEU
+				3'b111: out_tmp = in1 >= in2  ?1:0;
+				// Don't care.
+				default: out_tmp = 'bx;
+			endcase
 		end else begin
-			// Set less than conditionals.
-			cmp_res = !zflag & !cflag;
+			// Perform computations.
+			case(funct3)
+				// Addition (inst30=0) / subtraction (inst30=1).
+				`RV_ALU_ADD:
+					if (inst30 && !op_is_imm) begin
+						out_tmp = in1 - in2;
+					end else begin
+						out_tmp = in1 + in2;
+					end
+				// Logical shift left.
+				`RV_ALU_SLL:  out_tmp = in1 << (in2 & 31);
+				// Set less than (signed compare).
+				`RV_ALU_SLT:  out_tmp = sin1 < sin2;
+				// Set less than (unsigned compare).
+				`RV_ALU_SLTU: out_tmp = in1 < in2;
+				// Bitwise XOR.
+				`RV_ALU_XOR:  out_tmp = in1 ^ in2;
+				// Logical (inst30=0) / arithmetic (inst30=1) shift right.
+				`RV_ALU_SRL:
+					if (inst30) begin
+						// Arithmetic shift right.
+						out_tmp = sin1 >>> (in2 & 31);
+					end else begin
+						// Logical shift right.
+						out_tmp = in1 >> (in2 & 31);
+					end
+				// Bitwise OR.
+				`RV_ALU_OR:   out_tmp = in1 | in2;
+				// Bitwise AND.
+				`RV_ALU_AND:  out_tmp = in1 & in2;
+				// Don't care.
+				default: out_tmp = 'bx;
+			endcase
 		end
 	end
 endmodule
@@ -279,29 +284,33 @@ endmodule
 
 // Base RV32 instruction decoder.
 // All more advanced decoders have this as their base.
-module axo32_decoder(
+module axo32_decoder#(
+	// Whether to support compressed instructions.
+	parameter EXT_C = 0
+)(
 	// Input instruction to analyse.
 	input  wire[31:0] inst,
 	
-	// Whether this opcode is recognised by base RV32I.
-	output wire op_valid,
+	// Whether this opcode is recognised.
+	output wire       op_valid,
+	// Whether this is a compressed instruction.
+	output wire       op_is_compressed,
+	// Effective opcode number.
+	output wire[4:0]  opcode,
 	
 	// Operation will read from memory.
-	output wire op_will_read,
+	output wire       op_will_read,
 	// Operation will write to memory.
-	output wire op_will_write,
+	output wire       op_will_write,
 	// Operation will use ALU.
-	output wire op_uses_alu,
+	output wire       op_uses_alu,
 	// Operation is execution flow control.
-	output wire op_does_flowctl,
+	output wire       op_does_flowctl,
 	
 	// Operation equals `ECALL`.
-	output wire op_is_ecall,
+	output wire       op_is_ecall,
 	// Operation equals `EBREAK`.
-	output wire op_is_ebreak,
-	
-	// Operation must use 32 bits instead of XLEN (64 / 128).
-	output wire op_32bit,
+	output wire       op_is_ebreak,
 	
 	// OP is OP-LUI* or OP-AUIPC* type.
 	output wire       op_is_lui,
@@ -327,6 +336,7 @@ module axo32_decoder(
 	// Second source register, if any.
 	output wire[4:0]  rs2
 );
+	assign opcode = inst[6:2];
 	
 	// Stores the values for is_*_type and op_will_*.
 	reg[10:0] is_type_reg;
@@ -352,15 +362,13 @@ module axo32_decoder(
 	// Determine instruction encoding type.
 	always @(*) begin
 		if (inst[1:0] != 'b11) is_type_reg = 0;
-		else case(inst[6:2])                 // v rwaf RIS BUJ
+		else case(opcode)                 // v rwaf RIS BUJ
 			`RV_OP_LOAD:		is_type_reg = 'b1_1000_010_000;
 			`RV_OP_MISC_MEM:	is_type_reg = 'b1_0000_010_000;
 			`RV_OP_OP_IMM:		is_type_reg = 'b1_0010_010_000;
-			`RV_OP_OP_IMM_32:	is_type_reg = 'b1_0010_010_000;
 			`RV_OP_AUIPC:		is_type_reg = 'b1_0000_000_010;
 			`RV_OP_STORE:		is_type_reg = 'b1_0100_001_000;
 			`RV_OP_OP:			is_type_reg = 'b1_0010_100_000;
-			`RV_OP_OP_32:		is_type_reg = 'b1_0010_100_000;
 			`RV_OP_LUI:			is_type_reg = 'b1_0000_000_010;
 			`RV_OP_BRANCH:		is_type_reg = 'b1_0011_000_100;
 			`RV_OP_JALR:		is_type_reg = 'b1_0001_010_000;
@@ -369,11 +377,10 @@ module axo32_decoder(
 			default: is_type_reg = 0;
 		endcase
 	end
-	assign op_32bit = inst[6:2] == `RV_OP_OP_IMM_32 || inst[6:2] == `RV_OP_OP_32;
 	
 	// Detect ECALL and EBREAK.
-	assign op_is_ebreak = inst[6:2] == `RV_OP_SYSTEM && inst[20] == 1;
-	assign op_is_ecall  = inst[6:2] == `RV_OP_SYSTEM && inst[20] == 0;
+	assign op_is_ebreak = opcode == `RV_OP_SYSTEM && inst[20] == 1;
+	assign op_is_ecall  = opcode == `RV_OP_SYSTEM && inst[20] == 0;
 	
 	// Compute imm value.
 	axo32_decd_imm32 decd_imm32(

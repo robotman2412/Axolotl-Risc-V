@@ -7,6 +7,8 @@
 */
 
 `include "axo_rv32i.v"
+`include "memories.v"
+`include "program.v"
 
 module top(
 );
@@ -23,16 +25,17 @@ module top(
 		prog_addr, prog_data
 	);
 	
-	reg[31:0] prog_mem[31:0];
-	assign prog_data = prog_mem[prog_addr>>2];
+	program prog_rom(prog_addr>>2, prog_data);
+	
+	wire alignerr;
+	aligned_ram #(.addr_width(32), .depth(256)) mem(
+		clk,
+		mem_re, mem_we,
+		mem_asize, mem_addr, mem_data,
+		alignerr
+	);
 	
 	initial begin
-		prog_mem[0] <= 'h02100093;
-		prog_mem[1] <= 'h00108133;
-		prog_mem[2] <= 'h00115193;
-		prog_mem[3] <= 'hf00dc237;
-		prog_mem[4] <= 'habe20213;
-		
 		#1000 clk <= 0;
 		#100 clk <= 1;
 		#100 clk <= 0;

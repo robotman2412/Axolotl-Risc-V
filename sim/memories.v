@@ -139,6 +139,7 @@ module aligned_ram #(
 	always @(posedge clk) begin
 		// Write logic.
 		if (we && asize == 0) begin
+			$display("sb [0x%08h] = 0x%08h", addr, data);
 			// 8-bit write.
 			if (addr[1:0] == 0) begin
 				storage[addr>>2][7:0] = data[7:0];
@@ -151,6 +152,7 @@ module aligned_ram #(
 			end
 			
 		end else if (we && asize == 1) begin
+			$display("sh [0x%08h] = 0x%08h", addr, data);
 			// 16-bit write.
 			if (addr[1]) begin
 				storage[addr>>2][31:16] = data[15:0];
@@ -159,6 +161,7 @@ module aligned_ram #(
 			end
 			
 		end else if (we && asize == 2) begin
+			$display("sw [0x%08h] = 0x%08h", addr, data);
 			// 32-bit write.
 			storage[addr>>2] <= data;
 		end

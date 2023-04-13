@@ -19,11 +19,11 @@ module axo_rv32i(
 	
 	
 	// Read from memory
-	output wire       mem_re,
+	output reg        mem_re,
 	// Write to memory.
-	output wire       mem_we,
+	output reg        mem_we,
 	// Memory access size in 2^n bytes.
-	output wire[1:0]  mem_asize,
+	output reg [1:0]  mem_asize,
 	// CPU will stall on memory OPs while 0.
 	input  wire       mem_ready,
 	
@@ -54,10 +54,17 @@ module axo_rv32i(
 	
 	// Current execution/loading state.
 	reg[3:0]   xstate;
-	// Current instruction address.
-	reg[31:0]  pc;
 	// Current instruction.
 	reg[31:0]  inst;
+	
+	// Previous value of PC; typically pc-4.
+	reg[31:0]  prev_pc;
+	// Current instruction address.
+	reg[31:0]  pc;
+	// Branch target address.
+	reg[31:0]  branch_target;
+	// Whether to take a branch.
+	reg        branch_taken;
 	
 	// Determines whether to stall instruction execution.
 	wire exec_stall;
@@ -70,11 +77,11 @@ module axo_rv32i(
 	wire[31:0] op2_bus;
 	
 	// Wires from base decoder.
-	wire op_valid;
+	wire op_valid, op_is_compressed;
+	wire[4:0] opcode;
 	wire op_will_read, op_will_write;
 	wire op_uses_alu, op_does_flowctl;
 	wire op_is_ecall, op_is_ebreak;
-	wire op_32bit;
 	wire op_is_lui, op_is_auipc, op_is_imm;
 	wire[31:0] imm;
 	wire rd_we, rs1_re, rs2_re;
@@ -103,7 +110,7 @@ module axo_rv32i(
 	// RV32I ALU.
 	axo_alu#(.XLEN(32)) alu(
 		inst[14:12], inst[30],
-		op_does_flowctl,
+		op_does_flowctl, op_is_imm,
 		op1_bus, op2_bus,
 		alu_q
 	);
@@ -115,11 +122,11 @@ module axo_rv32i(
 	assign exec_stall = (mem_re | mem_we) && !mem_ready;
 	axo32_decoder decd(
 		inst, op_valid,
+		op_is_compressed, opcode,
 		
 		op_will_read, op_will_write,
 		op_uses_alu, op_does_flowctl,
 		op_is_ecall, op_is_ebreak,
-		op_32bit,
 		
 		op_is_lui, op_is_auipc,
 		op_is_imm, imm,
@@ -134,25 +141,41 @@ module axo_rv32i(
 	// Bus logic.
 	assign op2_bus   = rs2_re ? 'bz : imm;
 	
-	// assign data_bus  = op_uses_alu ? alu_q : 'bz;
-	
-	assign prog_re   = xstate == XS_LOAD;
-	assign prog_addr = pc;
-	assign mem_re    = 0;
-	assign mem_we    = 0;
-	assign mem_data  = mem_we ? data_bus : 'bz;
-	
 	always @(*) begin
 		if (op_uses_alu) begin
 			data_bus <= alu_q;
 		end else if (op_will_read) begin
 			data_bus <= mem_data;
+		end else if (opcode == `RV_OP_AUIPC) begin
+			data_bus <= imm + prev_pc;
 		end else if (rd_we) begin
 			data_bus <= imm;
 		end else begin
 			data_bus <= 0;
 		end
 	end
+	
+	// Memory access logic.
+	assign prog_re   = xstate == XS_LOAD;
+	assign prog_addr = pc;
+	assign mem_data  = mem_we ? op2_bus : 'bz;
+	assign mem_addr  = imm + op1_bus;
+	always @(*) begin
+		if (op_will_write) begin
+			mem_re    <= 0;
+			mem_we    <= xstate == XS_EXEC;
+			mem_asize <= inst[14:12];
+		end else if (op_will_read) begin
+			mem_re    <= xstate == XS_EXEC;
+			mem_we    <= 0;
+			mem_asize <= inst[14:12];
+		end else begin
+			mem_re    <= 0;
+			mem_we    <= 0;
+			mem_asize <= 0;
+		end
+	end
+	
 	
 	
 	
@@ -167,6 +190,30 @@ module axo_rv32i(
 	
 	
 	
+	// Branching logic.
+	always @(*) begin
+		if (opcode == `RV_OP_JAL) begin
+			branch_taken  <= 1;
+			branch_target <= prev_pc + imm;
+		end else if (opcode == `RV_OP_JALR) begin
+			branch_taken <= 1;
+			branch_target <= imm + op1_bus;
+		end else if (opcode == `RV_OP_BRANCH) begin
+			branch_taken  <= alu_q[0];
+			branch_target <= prev_pc + imm;
+		end else begin
+			branch_taken  <= 0;
+			branch_target <= 'bx;
+		end
+	end
+	always @(posedge clk) begin
+		if (!rst && xstate == XS_EXEC && branch_taken) begin
+			pc <= branch_target;
+		end
+	end
+	
+	
+	
 	// Synchronous logic.
 	always @(posedge clk, posedge rst) begin
 		if (!rst) begin
@@ -174,9 +221,10 @@ module axo_rv32i(
 		end
 		if (rst) begin
 			// Reset execution state.
-			pc     <= 0;
-			xstate <= XS_LOAD;
-			inst   <= 0;
+			prev_pc <= 0;
+			pc      <= 0;
+			xstate  <= XS_LOAD;
+			inst    <= 0;
 			$display("Signalled reset");
 			
 		end else if (xstate == XS_EXEC) begin
@@ -202,10 +250,11 @@ module axo_rv32i(
 				
 			end else if (prog_ready) begin
 				// Switch to instruction execution.
-				inst   <= prog_data;
+				inst    <= prog_data;
 				$display("Loaded 0x%08h", prog_data);
-				pc     <= pc + 4;
-				xstate <= XS_EXEC;
+				prev_pc <= pc;
+				pc      <= pc + 4;
+				xstate  <= XS_EXEC;
 			end
 			
 		end else begin
