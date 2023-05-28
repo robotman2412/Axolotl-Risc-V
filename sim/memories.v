@@ -3,7 +3,7 @@
 	This work ("Axolotl³²") is licensed under a Creative Commons
 	Attribution-NonCommercial-ShareAlike 4.0 International License:
 	
-	http://creativecommons.org/licenses/by-nc-sa/4.0/
+	https://creativecommons.org/licenses/by-nc-sa/4.0/
 */
 
 // 8-bit RAM that can be accessed as 16- and 32-bit RAM without alignment.
