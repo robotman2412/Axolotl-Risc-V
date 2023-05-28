@@ -22,7 +22,7 @@ module top(
 	input  wire[7:0] SW,
 	output wire[7:0] LED
 );
-	wire[7:0] char_x;
+	wire[6:0] char_x;
 	wire[6:0] char_y;
 	wire[7:0] char = char_x[3:0] | (char_y[3:0] << 4);
 	vga vga (VGA_R, VGA_G, VGA_B, VGA_VS, VGA_HS, GCLK, char_x, char_y, char);

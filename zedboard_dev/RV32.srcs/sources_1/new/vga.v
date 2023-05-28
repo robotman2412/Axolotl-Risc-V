@@ -14,7 +14,7 @@ module vga(
 	output wire      VGA_VS,
 	output wire      VGA_HS,
 	input  wire      GCLK,
-	output reg [7:0] next_char_x,
+	output reg [6:0] next_char_x,
 	output reg [6:0] next_char_y,
 	input  wire[7:0] char
 );
@@ -33,7 +33,7 @@ module vga(
 	localparam n_char_y   =  75;
 	
 	// VGA signal generation.
-	reg[3:0]  clk_div;
+	reg[2:0]  clk_div;
 	reg[10:0] pos_x;
 	reg[9:0]  pos_y;
 	reg       h_sync, v_sync;
