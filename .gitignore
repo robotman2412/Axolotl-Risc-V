@@ -1,2 +1,5 @@
 riscv-spec-*.pdf
+zedboard_dev/*.cache
+zedboard_dev/*.sim
+zedboard_dev/*.runs
 sim/*/build
