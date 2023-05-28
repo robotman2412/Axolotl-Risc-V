@@ -1,67 +1,9 @@
-# ----------------------------------------------------------------------------
-#     _____
-#    /     \
-#   /____   \____
-#  / \===\   \==/
-# /___\===\___\/  AVNET Design Resource Center
-#      \======/         www.em.avnet.com/drc
-#       \====/    
-# ----------------------------------------------------------------------------
-# 
-#  Created With Avnet UCF Generator V0.4.0 
-#     Date: Saturday, June 30, 2012 
-#     Time: 12:18:55 AM 
-# 
-#  This design is the property of Avnet.  Publication of this
-#  design is not authorized without written consent from Avnet.
-#  
-#  Please direct any questions to:
-#     ZedBoard.org Community Forums
-#     http://www.zedboard.org
-# 
-#  Disclaimer:
-#     Avnet, Inc. makes no warranty for the use of this code or design.
-#     This code is provided  "As Is". Avnet, Inc assumes no responsibility for
-#     any errors, which may appear in this code, nor does it make a commitment
-#     to update the information contained herein. Avnet, Inc specifically
-#     disclaims any implied warranties of fitness for a particular purpose.
-#                      Copyright(c) 2012 Avnet, Inc.
-#                              All rights reserved.
-# 
-# ----------------------------------------------------------------------------
-# 
-#  Notes:
-# 
-#  10 August 2012
-#     IO standards based upon Bank 34 and Bank 35 Vcco supply options of 1.8V, 
-#     2.5V, or 3.3V are possible based upon the Vadj jumper (J18) settings.  
-#     By default, Vadj is expected to be set to 1.8V but if a different 
-#     voltage is used for a particular design, then the corresponding IO 
-#     standard within this UCF should also be updated to reflect the actual 
-#     Vadj jumper selection.
-# 
-#  09 September 2012
-#     Net names are not allowed to contain hyphen characters '-' since this
-#     is not a legal VHDL87 or Verilog character within an identifier.  
-#     HDL net names are adjusted to contain no hyphen characters '-' but 
-#     rather use underscore '_' characters.  Comment net name with the hyphen 
-#     characters will remain in place since these are intended to match the 
-#     schematic net names in order to better enable schematic search.
+
+# This work ("Axolotl³²") is licensed under a Creative Commons
+# Attribution-NonCommercial-ShareAlike 4.0 International License:
 #
-#  17 April 2014
-#     Pin constraint for toggle switch SW7 was corrected to M15 location.
-#
-#  16 April 2015
-#     Corrected the way that entire banks are assigned to a particular IO
-#     standard so that it works with more recent versions of Vivado Design
-#     Suite and moved the IO standard constraints to the end of the file 
-#     along with some better organization and notes like we do with our SOMs.
-#
-#   6 June 2016
-#     Corrected error in signal name for package pin N19 (FMC Expansion Connector)
-#	
-#
-# ----------------------------------------------------------------------------
+# http://creativecommons.org/licenses/by-nc-sa/4.0/
+
 
 # ----------------------------------------------------------------------------
 # Audio Codec - Bank 13
@@ -80,6 +22,7 @@
 # Clock Source - Bank 13
 # ---------------------------------------------------------------------------- 
 set_property PACKAGE_PIN Y9 [get_ports {GCLK}];  # "GCLK"
+create_clock -name GCLK -period 10 [get_ports {GCLK}]
 
 # ----------------------------------------------------------------------------
 # JA Pmod - Bank 13 
@@ -144,22 +87,22 @@ set_property PACKAGE_PIN Y9 [get_ports {GCLK}];  # "GCLK"
 # HDMI Output - Bank 33
 # ---------------------------------------------------------------------------- 
 #set_property PACKAGE_PIN W18  [get_ports {HD_CLK}];    # "HD-CLK"
-#set_property PACKAGE_PIN Y13  [get_ports {HD_D0}];     # "HD-D0"
-#set_property PACKAGE_PIN AA13 [get_ports {HD_D1}];     # "HD-D1"
-#set_property PACKAGE_PIN W13  [get_ports {HD_D10}];    # "HD-D10"
-#set_property PACKAGE_PIN W15  [get_ports {HD_D11}];    # "HD-D11"
-#set_property PACKAGE_PIN V15  [get_ports {HD_D12}];    # "HD-D12"
-#set_property PACKAGE_PIN U17  [get_ports {HD_D13}];    # "HD-D13"
-#set_property PACKAGE_PIN V14  [get_ports {HD_D14}];    # "HD-D14"
-#set_property PACKAGE_PIN V13  [get_ports {HS_D15}];    # "HD-D15"
-#set_property PACKAGE_PIN AA14 [get_ports {HD_D2}];     # "HD-D2"
-#set_property PACKAGE_PIN Y14  [get_ports {HD_D3}];     # "HD-D3"
-#set_property PACKAGE_PIN AB15 [get_ports {HD_D4}];     # "HD-D4"
-#set_property PACKAGE_PIN AB16 [get_ports {HD_D5}];     # "HD-D5"
-#set_property PACKAGE_PIN AA16 [get_ports {HD_D6}];     # "HD-D6"
-#set_property PACKAGE_PIN AB17 [get_ports {HD_D7}];     # "HD-D7"
-#set_property PACKAGE_PIN AA17 [get_ports {HD_D8}];     # "HD-D8"
-#set_property PACKAGE_PIN Y15  [get_ports {HD_D9}];     # "HD-D9"
+#set_property PACKAGE_PIN Y13  [get_ports {HD_D[0]}];   # "HD-D0"
+#set_property PACKAGE_PIN AA13 [get_ports {HD_D[1]}];   # "HD-D1"
+#set_property PACKAGE_PIN W13  [get_ports {HD_D[10]}];  # "HD-D10"
+#set_property PACKAGE_PIN W15  [get_ports {HD_D[11]}];  # "HD-D11"
+#set_property PACKAGE_PIN V15  [get_ports {HD_D[12]}];  # "HD-D12"
+#set_property PACKAGE_PIN U17  [get_ports {HD_D[13]}];  # "HD-D13"
+#set_property PACKAGE_PIN V14  [get_ports {HD_D[14]}];  # "HD-D14"
+#set_property PACKAGE_PIN V13  [get_ports {HS_D[15]}];  # "HD-D15"
+#set_property PACKAGE_PIN AA14 [get_ports {HD_D[2]}];   # "HD-D2"
+#set_property PACKAGE_PIN Y14  [get_ports {HD_D[3]}];   # "HD-D3"
+#set_property PACKAGE_PIN AB15 [get_ports {HD_D[4]}];   # "HD-D4"
+#set_property PACKAGE_PIN AB16 [get_ports {HD_D[5]}];   # "HD-D5"
+#set_property PACKAGE_PIN AA16 [get_ports {HD_D[6]}];   # "HD-D6"
+#set_property PACKAGE_PIN AB17 [get_ports {HD_D[7]}];   # "HD-D7"
+#set_property PACKAGE_PIN AA17 [get_ports {HD_D[8]}];   # "HD-D8"
+#set_property PACKAGE_PIN Y15  [get_ports {HD_D[9]}];   # "HD-D9"
 #set_property PACKAGE_PIN U16  [get_ports {HD_DE}];     # "HD-DE"
 #set_property PACKAGE_PIN V17  [get_ports {HD_HSYNC}];  # "HD-HSYNC"
 #set_property PACKAGE_PIN W16  [get_ports {HD_INT}];    # "HD-INT"

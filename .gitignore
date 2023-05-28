@@ -2,4 +2,6 @@ riscv-spec-*.pdf
 zedboard_dev/*.cache
 zedboard_dev/*.sim
 zedboard_dev/*.runs
+zedboard_dev/*.ip_user_files
+zedboard_dev/*.gen
 sim/*/build
