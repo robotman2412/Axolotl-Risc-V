@@ -1,0 +1,19 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"1.0",
+   "Default View_TopLeft":"-213,-351",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.0r4  2019-12-20 bk=1.5203 VDI=41 GEI=36 GUI=JA:10.0 TLS
+#  -string -flagsOSRD
+preplace port port-id_clka_0 -pg 1 -lvl 0 -x 0 -y -90 -defaultsOSRD
+preplace portBus addra_0 -pg 1 -lvl 0 -x 0 -y -110 -defaultsOSRD
+preplace portBus douta_0 -pg 1 -lvl 0 -x 0 -y -70 -defaultsOSRD -left
+preplace inst blk_mem_gen_0 -pg 1 -lvl 1 -x 140 -y -100 -defaultsOSRD
+preplace netloc addra_0_1 1 0 1 NJ -110
+preplace netloc blk_mem_gen_0_douta 1 0 1 N -70
+preplace netloc clka_0_1 1 0 1 NJ -90
+levelinfo -pg 1 0 140 270
+pagesize -pg 1 -db -bbox -sgen -150 -210 270 120
+"
+}
+0

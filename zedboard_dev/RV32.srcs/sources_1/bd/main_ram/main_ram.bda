@@ -22,11 +22,11 @@
   <graph edgedefault="undirected" id="G" parse.edgeids="canonical" parse.nodeids="canonical" parse.order="nodesfirst">
     <node id="n0">
       <data key="VH">2</data>
-      <data key="VM">char_rom</data>
+      <data key="VM">main_ram</data>
       <data key="VT">VR</data>
     </node>
     <node id="n1">
-      <data key="VM">char_rom</data>
+      <data key="VM">main_ram</data>
       <data key="VT">BC</data>
     </node>
     <node id="n2">

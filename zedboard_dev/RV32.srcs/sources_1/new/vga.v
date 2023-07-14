@@ -88,7 +88,7 @@ module vga(
 			v_sync_buf <= v_sync;
 			vid_enable_buf <= vid_enable;
 			
-			if ((pos_x & 7) == 7 && h_vid_enable) begin
+			if (pos_x[2:0] == 7 && h_vid_enable) begin
 				// Update character to show.
 				char_reg     <= char;
 				// Update next character position.
@@ -114,6 +114,7 @@ module vga(
 				h_vid_enable <= 1;
 				pos_x        <= 0;
 				char_reg     <= char;
+				next_char_x  <= 1;
 			end
 		end
 		if (clk_div == 5) begin

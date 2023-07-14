@@ -1,10 +1,10 @@
 {
   "design": {
     "design_info": {
-      "boundary_crc": "0x8982F11CA775453A",
+      "boundary_crc": "0x7BD51CE46077AB91",
       "device": "xc7z020clg484-1",
-      "gen_directory": "../../../../RV32.gen/sources_1/bd/char_rom",
-      "name": "char_rom",
+      "gen_directory": "../../../../RV32.gen/sources_1/bd/overlay_rom",
+      "name": "overlay_rom",
       "rev_ctrl_bd_flag": "RevCtrlBdOff",
       "synth_flow_mode": "Hierarchical",
       "tool_version": "2021.1",
@@ -16,7 +16,7 @@
     "ports": {
       "addra_0": {
         "direction": "I",
-        "left": "10",
+        "left": "13",
         "right": "0"
       },
       "clka_0": {
@@ -24,7 +24,7 @@
         "direction": "I",
         "parameters": {
           "CLK_DOMAIN": {
-            "value": "char_rom_clka_0",
+            "value": "overlay_rom_clka_0",
             "value_src": "default"
           },
           "FREQ_HZ": {
@@ -54,15 +54,12 @@
     "components": {
       "blk_mem_gen_0": {
         "vlnv": "xilinx.com:ip:blk_mem_gen:8.4",
-        "xci_name": "char_rom_blk_mem_gen_0_0",
-        "xci_path": "ip/char_rom_blk_mem_gen_0_0/char_rom_blk_mem_gen_0_0.xci",
+        "xci_name": "overlay_rom_blk_mem_gen_0_0",
+        "xci_path": "ip/overlay_rom_blk_mem_gen_0_0/overlay_rom_blk_mem_gen_0_0.xci",
         "inst_hier_path": "blk_mem_gen_0",
         "parameters": {
-          "Additional_Inputs_for_Power_Estimation": {
-            "value": "false"
-          },
           "Coe_File": {
-            "value": "../../../../new/ascii_v3.coe"
+            "value": "../../../../new/overlay.coe"
           },
           "Enable_32bit_Address": {
             "value": "false"
@@ -83,13 +80,13 @@
             "value": "0"
           },
           "Register_PortA_Output_of_Memory_Primitives": {
-            "value": "false"
+            "value": "true"
           },
           "Use_RSTA_Pin": {
             "value": "false"
           },
           "Write_Depth_A": {
-            "value": "2048"
+            "value": "16384"
           },
           "Write_Width_A": {
             "value": "8"
