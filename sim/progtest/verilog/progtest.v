@@ -17,12 +17,14 @@ module top(
 	wire[31:0] mem_addr, mem_data;
 	wire prog_re;
 	wire[31:0] prog_addr, prog_data;
+	wire[31:0] ddata;
 	axo_rv32i cpu(
 		clk, 1'b0, crash,
 		mem_re, mem_we, mem_asize, 1'b1,
 		mem_addr, mem_data,
 		prog_re, 1'b1,
-		prog_addr, prog_data
+		prog_addr, prog_data,
+		13'b0, ddata, 1'b0, 1'b0, 1'b0, 1'b0
 	);
 	
 	program prog_rom(prog_addr>>2, prog_data);

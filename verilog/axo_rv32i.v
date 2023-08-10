@@ -41,7 +41,20 @@ module axo_rv32i(
 	// Program address bus.
 	output wire[31:0] prog_addr,
 	// Program data bus.
-	input  wire[31:0] prog_data
+	input  wire[31:0] prog_data,
+	
+	// Debug register select.
+	input  wire[12:0] debug_addr,
+	// Debug data.
+	inout  wire[31:0] debug_data,
+	// Debug read enable.
+	input  wire       debug_re,
+	// Debug write enable.
+	input  wire       debug_we,
+	// Debug clock.
+	input  wire       debug_clk,
+	// Debug select and enable.
+	input  wire       debug_sel
 );
 	// Loading instruction.
 	localparam XS_LOAD  = 0;

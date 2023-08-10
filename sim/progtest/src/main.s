@@ -1,5 +1,6 @@
 
 	.text
+	.global _start
 _start:
 	addi x1, x0, 0xa0
 	addi x2, x0, 0x11

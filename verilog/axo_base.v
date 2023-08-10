@@ -86,24 +86,24 @@ module axo_regfile#(
 	
 	initial begin
 		// Initially set regfile to all 0.
-		for (i = 0; i < 32; i=i+1) begin
+		for (i = 1; i < 32; i=i+1) begin
 			data[i] = 0;
 		end
 	end
 	
 	// This is where the actual data is kept.
-	reg[XLEN-1:0] data[31:0];
+	reg[XLEN-1:0] data[31:1];
 	
 	// Read port 1.
-	assign dout1 = re1 ? data[rs1] : 'bz;
+	assign dout1 = !re1 ? 'bz : (rs1 ? data[rs1] : 0);
 	// Read port 2.
-	assign dout2 = re2 ? data[rs2] : 'bz;
+	assign dout2 = !re2 ? 'bz : (rs2 ? data[rs2] : 0);
 	
 	// Writing logic.
 	always @(posedge clk, posedge rst) begin
 		if (rst) begin
 			// Reset regfile to all 0.
-			for (i = 0; i < 32; i=i+1) begin
+			for (i = 1; i < 32; i=i+1) begin
 				data[i] = 0;
 			end
 		end else if (clk) begin
@@ -127,7 +127,7 @@ module axo_alu#(
 	// Used to determine operation type.
 	input  wire[2:0]      funct3,
 	// Bit 30 of instruction.
-	// Turns ADD into sub, SRL into SRA.
+	// Turns ADD into SUB, SRL into SRA.
 	input  wire           inst30,
 	
 	// Decode branch conditions.
@@ -193,7 +193,7 @@ module axo_alu#(
 						out_tmp = in1 + in2;
 					end
 				// Logical shift left.
-				`RV_ALU_SLL:  out_tmp = in1 << (in2 & 31);
+				`RV_ALU_SLL:  out_tmp = in1 << (in2 & ($clog2(XLEN)-1));
 				// Set less than (signed compare).
 				`RV_ALU_SLT:  out_tmp = sin1 < sin2;
 				// Set less than (unsigned compare).
@@ -204,10 +204,10 @@ module axo_alu#(
 				`RV_ALU_SRL:
 					if (inst30) begin
 						// Arithmetic shift right.
-						out_tmp = sin1 >>> (in2 & 31);
+						out_tmp = sin1 >>> (in2 & ($clog2(XLEN)-1));
 					end else begin
 						// Logical shift right.
-						out_tmp = in1 >> (in2 & 31);
+						out_tmp = in1 >> (in2 & ($clog2(XLEN)-1));
 					end
 				// Bitwise OR.
 				`RV_ALU_OR:   out_tmp = in1 | in2;
