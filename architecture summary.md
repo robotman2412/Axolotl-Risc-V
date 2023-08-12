@@ -44,7 +44,7 @@ in addition to being the largest size that math can be performed on in one instr
 
 RV32I has 32 registers in addition to the program counter:
  - `x0` (also named `zero`)
-   - always holds the constant value of zero
+   - Always holds the constant value 0
    - Physical index 0
  - `x1` through `x31`
    - Main register file
@@ -52,7 +52,6 @@ RV32I has 32 registers in addition to the program counter:
    - Physical indices 1 through 31
  - `pc` (program counter)
    - Address to next instruction to run
-   - Physical index 32
 
 
 
