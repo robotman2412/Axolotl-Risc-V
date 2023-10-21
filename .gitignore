@@ -6,3 +6,4 @@ zedboard_dev/*.runs
 zedboard_dev/*.ip_user_files
 zedboard_dev/*.gen
 sim/*/build
+.vscode
