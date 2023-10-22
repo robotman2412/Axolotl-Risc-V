@@ -33,6 +33,14 @@
 `define RV_OP_SYSTEM    'b11100
 `define RV_OP_custom_3  'b11110
 
+// RISC-V branch FUNCT3 values.
+`define RV_BRANCH_BEQ   'b000
+`define RV_BRANCH_BNE   'b001
+`define RV_BRANCH_BLT   'b100
+`define RV_BRANCH_BGE   'b101
+`define RV_BRANCH_BLTU  'b110
+`define RV_BRANCH_BGEU  'b111
+
 // RISC-V ALU FUNCT3 values.
 `define RV_ALU_ADD      'b000
 `define RV_ALU_SLL      'b001

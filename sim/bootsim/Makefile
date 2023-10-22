@@ -1,20 +1,33 @@
 
-.PHONY: all build clean run
+.PHONY: all build clean run wave
 
-SRCS = 	top.sv \
+HDL = 	top.sv \
 		../../verilog/axo_alu_rv32im.sv \
 		../../verilog/axo_base.sv \
 		../../verilog/axo_rv32im_zicsr.sv
 
-all: run
+SRC =	main.S
 
-build: $(SRCS)
+all: wave
+
+build/rom.sv: $(SRC)
 	@mkdir -p build
-	@iverilog -I. -I../../verilog $(SRCS) -o build/sim.vvp
+	@riscv32-unknown-elf-gcc -ffreestanding -nostdlib -nodefaultlibs -march=rv32im -mabi=ilp32 -Tlinker.ld -o build/rom.elf $^
+	@riscv32-unknown-elf-objcopy -O binary build/rom.elf build/rom.bin
+	@../bin2rom.py build/rom.bin build/rom.sv rom 16
+	@riscv32-unknown-elf-objdump -t build/rom.elf
+
+build/sim.vvp: $(HDL) build/rom.sv
+	@mkdir -p build
+	@iverilog -I. -I../../verilog $(HDL) -o build/sim.vvp
+
+build: build/sim.vvp
 
 clean:
 	rm -rf build
 
 run: build
 	vvp build/sim.vvp -fst
-	gtkwave -6 build/sim.vcd
+
+wave: run
+	gtkwave build/sim.vcd
