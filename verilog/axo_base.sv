@@ -77,6 +77,59 @@ endmodule
 
 
 
+module axo_reg_decoder#(
+    // Check for atomic instructions.
+    parameter a = 0,
+    // Check for float instructions.
+    parameter f = 0,
+    // Check for RV64 instructions.
+    parameter rv64 = 0
+)(
+    input  wire[31:0] insn,
+    output reg        has_rs1,
+    output reg        has_rs2,
+    output reg        has_rs3,
+    output reg        has_rd
+);
+    `include "axo_functions.sv"
+    
+    always @(*) begin
+        has_rs1 <= 'bx; has_rs2 <= 'bx; has_rs3 <= 'bx; has_rd <= 'bx;
+        case (axo_insn_opcode(insn))
+            `RV_OP_LOAD:        begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_LOAD_FP:     if (f) begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_MISC_MEM:    begin has_rs1 <= 0; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 0; end
+            `RV_OP_OP_IMM:      begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_AUIPC:       begin has_rs1 <= 0; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_OP_IMM_32:   if (rv64) begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_STORE:       begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 0; end
+            `RV_OP_STORE_FP:    if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 0; end
+            `RV_OP_AMO:         if (a) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_OP:          begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_LUI:         begin has_rs1 <= 0; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_OP_32:       if (rv64) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_MADD:        if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 1; has_rd <= 1; end
+            `RV_OP_MSUB:        if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 1; has_rd <= 1; end
+            `RV_OP_NMSUB:       if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 1; has_rd <= 1; end
+            `RV_OP_NMADD:       if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 1; has_rd <= 1; end
+            `RV_OP_OP_FP:       if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_BRANCH:      begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 0; end
+            `RV_OP_JALR:        begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_JAL:         begin has_rs1 <= 0; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_SYSTEM:
+                begin
+                    if (insn[14:12] != 0) begin
+                        has_rs1 <= !insn[14]; has_rs2 <= 0; has_rd <= 1;
+                    end else begin
+                        has_rs1 <= 0; has_rs2 <= 0; has_rd <= 0;
+                    end
+                end
+        endcase
+    end
+endmodule
+
+
+
 // CSR write value helper.
 module axo_csr_helper#(
     // XLEN; amount of bits stored in CSRs.

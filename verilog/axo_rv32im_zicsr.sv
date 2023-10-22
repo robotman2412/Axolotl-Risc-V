@@ -117,11 +117,13 @@ module axo_rv32im_zicsr#(
     // ID: Branch is predicted taken.
     wire        id_branch_predict;
     // ID: Instruction has RS1.
-    reg         id_has_rs1;
-    // ID: Instruction has RS1.
-    reg         id_has_rs2;
-    // ID: Instruction has RS1.
-    reg         id_has_rd;
+    wire        id_has_rs1;
+    // ID: Instruction has RS2.
+    wire        id_has_rs2;
+    // ID: Instruction has RS3 (floating-point only).
+    wire        id_has_rs3;
+    // ID: Instruction has RD.
+    wire        id_has_rd;
     // ID: RS1 register number.
     wire[4:0]   id_rs1;
     // ID: RS2 register number.
@@ -338,29 +340,10 @@ module axo_rv32im_zicsr#(
     end
     
     // RS1/RS2/RSD presence decoder.
-    always @(*) begin
-        case (axo_insn_opcode(b_if_id_insn))
-            `RV_OP_LOAD:        begin id_has_rs1 <= 1; id_has_rs2 <= 0; id_has_rd <= 1; end
-            `RV_OP_MISC_MEM:    begin id_has_rs1 <= 0; id_has_rs2 <= 0; id_has_rd <= 0; end
-            `RV_OP_OP_IMM:      begin id_has_rs1 <= 1; id_has_rs2 <= 0; id_has_rd <= 1; end
-            `RV_OP_AUIPC:       begin id_has_rs1 <= 0; id_has_rs2 <= 0; id_has_rd <= 1; end
-            `RV_OP_STORE:       begin id_has_rs1 <= 1; id_has_rs2 <= 1; id_has_rd <= 0; end
-            `RV_OP_OP:          begin id_has_rs1 <= 1; id_has_rs2 <= 1; id_has_rd <= 1; end
-            `RV_OP_LUI:         begin id_has_rs1 <= 0; id_has_rs2 <= 0; id_has_rd <= 1; end
-            `RV_OP_BRANCH:      begin id_has_rs1 <= 1; id_has_rs2 <= 1; id_has_rd <= 0; end
-            `RV_OP_JALR:        begin id_has_rs1 <= 1; id_has_rs2 <= 0; id_has_rd <= 1; end
-            `RV_OP_JAL:         begin id_has_rs1 <= 0; id_has_rs2 <= 0; id_has_rd <= 1; end
-            `RV_OP_SYSTEM:
-                begin
-                    if (b_if_id_insn[14:12] != 0) begin
-                        id_has_rs1 <= !b_if_id_insn[14]; id_has_rs2 <= 0; id_has_rd <= 1;
-                    end else begin
-                        id_has_rs1 <= 0; id_has_rs2 <= 0; id_has_rd <= 0;
-                    end
-                end
-            default: begin id_has_rs1 <= 'bx; id_has_rs2 <= 'bx; id_has_rd <= 'bx; end
-        endcase
-    end
+    axo_reg_decoder has_regs(
+        b_if_id_insn,
+        id_has_rs1, id_has_rs2, id_has_rs3, id_has_rd
+    );
     
     // LHS/RHS generation logic.
     always @(*) begin
