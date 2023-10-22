@@ -77,6 +77,46 @@ endmodule
 
 
 
+// Determines the address for jump or conditional branch instructions.
+module axo_branch_target(
+    input  wire[31:0] insn,
+    input  wire[31:1] pc_val,
+    input  wire[31:0] rs1_val,
+    output wire[31:1] branch_addr
+);
+    wire[31:0] branch_base = insn[3:2] == 2'b01 ? rs1_val : pc_val;
+    reg [31:0] branch_off;
+    assign     branch_addr = branch_base + branch_off;
+    always @(*) begin
+        if (axo_insn_opcode(insn) == `RV_OP_JAL) begin
+            // Jump and link relative.
+            branch_off[0]        <= 0;
+            branch_off[10:1]     <= insn[30:21];
+            branch_off[11]       <= insn[20];
+            branch_off[19:12]    <= insn[19:12];
+            branch_off[20]       <= insn[31];
+            
+        end else if (axo_insn_opcode(insn) == `RV_OP_JALR) begin
+            // Jump and link register.
+            branch_off[11:0]     <= insn[31:20];
+            branch_off[20:12]    <= insn[31] ? 9'h1ff : 9'h000;
+            
+        end else /*if (axo_insn_opcode(insn) == `RV_OP_BRANCH)*/ begin
+            // Conditional branches.
+            branch_off[0]        <= 0;
+            branch_off[4:1]      <= insn[11:8];
+            branch_off[10:5]     <= insn[30:25];
+            branch_off[11]       <= insn[7];
+            branch_off[12]       <= insn[30];
+            branch_off[20:13]    <= insn[31] ? 8'hff : 8'h00;
+        end
+        branch_off[31:21] <= branch_off[20] ? 10'h3ff : 10'h000;
+    end
+endmodule
+
+
+
+// Determines the presence of registers in instructions.
 module axo_reg_decoder#(
     // Check for atomic instructions.
     parameter a = 0,

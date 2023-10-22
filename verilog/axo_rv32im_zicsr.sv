@@ -97,7 +97,7 @@ module axo_rv32im_zicsr#(
     // IF/ID: Contains valid decode state.
     reg         b_if_id_valid;
     // IF/ID: Current PC.
-    reg [31:0]  b_if_id_pc;
+    reg [31:1]  b_if_id_pc;
     // IF/ID: Instruction length.
     reg         b_if_id_len;
     // IF/ID: Instruction word.
@@ -106,10 +106,6 @@ module axo_rv32im_zicsr#(
     /* Pipeline stage 2/3: decode */
     // ID: CSR number or address offset.
     reg [11:0]  id_off;
-    // ID: Branch base.
-    wire[31:0]  id_branch_base;
-    // ID: Branch offset.
-    reg [31:0]  id_branch_off;
     // ID: Branch target address.
     wire[31:1]  id_branch_addr;
     // ID: Instruction is jump or branch.
@@ -311,33 +307,11 @@ module axo_rv32im_zicsr#(
     assign id_branch_predict = axo_insn_opcode(b_if_id_insn) != `RV_OP_BRANCH || b_if_id_insn[31];
     
     // Branch target address logic.
-    assign id_branch_base = b_if_id_insn[3:2] == 2'b01 ? fw_lhs ? ex_result : id_rs1_val : b_if_id_pc;
-    assign id_branch_addr = id_branch_base + id_branch_off;
-    always @(*) begin
-        if (axo_insn_opcode(b_if_id_insn) == `RV_OP_JAL) begin
-            // Jump and link relative.
-            id_branch_off[0]        <= 0;
-            id_branch_off[10:1]     <= b_if_id_insn[30:21];
-            id_branch_off[11]       <= b_if_id_insn[20];
-            id_branch_off[19:12]    <= b_if_id_insn[19:12];
-            id_branch_off[20]       <= b_if_id_insn[31];
-            
-        end else if (axo_insn_opcode(b_if_id_insn) == `RV_OP_JALR) begin
-            // Jump and link register.
-            id_branch_off[11:0]     <= b_if_id_insn[31:20];
-            id_branch_off[20:12]    <= b_if_id_insn[31] ? 9'h1ff : 9'h000;
-            
-        end else /*if (axo_insn_opcode(b_if_id_insn) == `RV_OP_BRANCH)*/ begin
-            // Conditional branches.
-            id_branch_off[0]        <= 0;
-            id_branch_off[4:1]      <= b_if_id_insn[11:8];
-            id_branch_off[10:5]     <= b_if_id_insn[30:25];
-            id_branch_off[11]       <= b_if_id_insn[7];
-            id_branch_off[12]       <= b_if_id_insn[30];
-            id_branch_off[20:13]    <= b_if_id_insn[31] ? 8'hff : 8'h00;
-        end
-        id_branch_off[31:21] <= id_branch_off[20] ? 10'h3ff : 10'h000;
-    end
+    axo_branch_target branch_target(
+        b_if_id_insn,
+        b_if_id_pc, fw_lhs ? ex_result : id_rs1_val,
+        id_branch_addr
+    );
     
     // RS1/RS2/RSD presence decoder.
     axo_reg_decoder has_regs(
