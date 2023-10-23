@@ -96,3 +96,18 @@ function automatic [0:0] axo_insn_is_branch(input[31:0] insn);
         axo_insn_is_branch = insn[6:4] == 3'b110 && insn[3:2] != 2'b10;
     end
 endfunction
+
+// Determine whether the instruction is an mret or sret.
+function automatic [0:0] axo_insn_is_xret(input[31:0] insn);
+    begin
+        axo_insn_is_xret = insn[6:2] == 5'b11100 && insn[14:12] == 0 && insn[21];
+    end
+endfunction
+
+// Determine whether the instruction is a CSR access.
+function automatic [0:0] axo_insn_is_csr(input[31:0] insn);
+    begin
+        axo_insn_is_csr = insn[6:2] == 5'b11100 && insn[14:12] != 0;
+    end
+endfunction
+

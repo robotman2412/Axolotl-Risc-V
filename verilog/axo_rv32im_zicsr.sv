@@ -113,6 +113,8 @@ module axo_rv32im_zicsr#(
     logic[31:0] tr_ie;
     // Interrupt vector.
     logic[31:2] tr_vec;
+    // Trap return address.
+    logic[31:1] tr_ret_addr;
     
     /* Pipeline hazard avoidance logic */
     // Stall IF stage.
@@ -318,13 +320,19 @@ module axo_rv32im_zicsr#(
     // Forwarding logic.
     assign fw_lhs            = b_id_ex_valid && b_id_ex_rd != 0 && b_id_ex_rd == id_rs1 && id_has_rs1;
     assign fw_rhs            = b_id_ex_valid && b_id_ex_rd != 0 && b_id_ex_rd == id_rs2 && id_has_rs2;
-    assign fw_stall_if       = 0;
-    assign fw_stall_id       = 0;
-    assign fw_stall_ex       = 0;
     assign fw_branch         = !fw_branch_error && id_is_branch;
     assign fw_branch_predict = !fw_branch_error && id_branch_predict;
     assign fw_branch_error   = ex_branch_error;
-    
+    assign fw_stall_ex       = 0;
+    always @(*) begin
+        if (b_if_id_valid && axo_insn_is_xret(b_if_id_insn) && ex_valid && axo_insn_is_csr(b_id_ex_insn)) begin
+            // MRET is vulnerable to CSR writes, stall it.
+            fw_stall_id = 1;
+        end else begin
+            fw_stall_id = 0;
+        end
+    end
+    assign fw_stall_if = fw_stall_id;
     
     /* ==== PIPELINE STAGE 1/3: FETCH ==== */
     // Instruction length decoder.
@@ -387,7 +395,7 @@ module axo_rv32im_zicsr#(
             // Trap information.
             b_if_id_trap    <= if_trap;
             b_if_id_cause   <= if_cause;
-        end else begin
+        end else if (!fw_stall_id) begin
             // Stalled; results are invalid.
             b_if_id_valid   <= 0;
         end
@@ -443,13 +451,30 @@ module axo_rv32im_zicsr#(
     end
     
     // Branch prediction logic.
-    assign id_is_branch      = b_if_id_valid && axo_insn_is_branch(b_if_id_insn);
-    assign id_branch_predict = axo_insn_opcode(b_if_id_insn) != `RV_OP_BRANCH || b_if_id_insn[31];
+    always @(*) begin
+        if (b_if_id_valid && axo_insn_opcode(b_if_id_insn) == `RV_OP_BRANCH) begin
+            // BRANCH.
+            id_is_branch      = 1;
+            id_branch_predict = b_if_id_insn[31];
+        end else if (b_if_id_valid && axo_insn_is_branch(b_if_id_insn)) begin
+            // JAL / JALR.
+            id_is_branch      = 1;
+            id_branch_predict = 1;
+        end else if (b_if_id_valid && axo_insn_is_xret(b_if_id_insn)) begin
+            // MRET.
+            id_is_branch      = 1;
+            id_branch_predict = 1;
+        end else begin
+            // Not a control transfer.
+            id_is_branch      = 0;
+            id_branch_predict = 'bx;
+        end
+    end
     
     // Branch target address logic.
     axo_branch_target branch_target(
         b_if_id_insn,
-        b_if_id_pc, fw_lhs ? ex_result : id_rs1_val,
+        b_if_id_pc, tr_ret_addr, fw_lhs ? ex_result : id_rs1_val,
         id_branch_addr
     );
     
@@ -535,7 +560,7 @@ module axo_rv32im_zicsr#(
             // Trap information.
             b_id_ex_trap            <= b_if_id_trap || id_trap;
             b_id_ex_cause           <= b_if_id_trap ? b_if_id_cause : id_cause;
-        end else begin
+        end else if (!fw_stall_ex) begin
             // Stalled; results are invalid.
             b_id_ex_valid           <= 0;
         end
@@ -583,7 +608,7 @@ module axo_rv32im_zicsr#(
         clk, rst_latch,
         b_id_ex_off, ex_csr_din, ex_csr_res, ex_csr_we, ex_csr_trap,
         tr_irq, b_id_ex_pc, tr_trap_cause, tr_trap, tr_is_interrupt,
-        tr_ie, tr_vec
+        tr_ie, tr_vec, tr_ret_addr
     );
     
     // Result logic.
@@ -614,7 +639,6 @@ module axo_rv32im_zicsr#(
     // Trap logic.
     assign ex_trap  = b_id_ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_SYSTEM && axo_insn_funct3(b_id_ex_insn) != 0 && ex_csr_trap;
     assign ex_cause = `RV_ECAUSE_IILLEGAL;
-    
 endmodule
 
 
@@ -643,7 +667,7 @@ module axo_rv32im_zicsr_csrs#(
     // Current interrupts pending.
     input  logic[31:0]   mip,
     // Program counter to save on trap or interrupt.
-    input  logic[31:1]   mepc,
+    input  logic[31:1]   mepc_in,
     // Cause of interrupt / trap being dispatched.
     input  logic[4:0]    cause,
     // Trap or interrupt dispatched.
@@ -654,7 +678,9 @@ module axo_rv32im_zicsr_csrs#(
     // Current interrupts enabled, masked by CSR mie and CSR mstatus.
     output logic[31:0]   mie,
     // Current trap and interrupt vector.
-    output logic[31:2]   mtvec
+    output logic[31:2]   mtvec,
+    // Current exception PC.
+    output logic[31:1]   mepc_out
 );
     /* ==== CSR STORAGE ==== */
     // CSR mstatus: M-mode previous interrupt enable.
@@ -712,8 +738,9 @@ module axo_rv32im_zicsr_csrs#(
     assign      invalid = !csr_exists || (!csr_writeable && we);
     
     // Output logic.
-    assign mie   = csr_mstatus_mie ? csr_mie : 0;
-    assign mtvec = csr_mtvec;
+    assign mie      = csr_mstatus_mie ? csr_mie : 0;
+    assign mtvec    = csr_mtvec;
+    assign mepc_out = csr_mepc;
     
     
     
@@ -758,7 +785,7 @@ module axo_rv32im_zicsr_csrs#(
             // CSR changes on trap or interrupt.
             csr_mstatus_mpie    <= 1;
             csr_mstatus_mie     <= 0;
-            csr_mepc            <= mepc;
+            csr_mepc            <= mepc_in;
             csr_mcause_int      <= is_int;
             csr_mcause_no       <= cause;
             

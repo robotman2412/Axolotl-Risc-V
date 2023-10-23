@@ -79,36 +79,55 @@ endmodule
 
 // Determines the address for jump or conditional branch instructions.
 module axo_branch_target(
+    // Control transfer instruction.
     input  logic[31:0] insn,
+    // Current instruction PC value.
     input  logic[31:1] pc_val,
+    // Either mepc or sepc for mret or sret respectively.
+    input  logic[31:1] epc_val,
+    // Value of RS1'th register.
     input  logic[31:0] rs1_val,
-    output logic[31:1] branch_addr
+    // Calculated branch address.
+    // Only valid for control transfer instructions.
+    output logic[31:1] addr
 );
     wire [31:0] branch_base = insn[3:2] == 2'b01 ? rs1_val : pc_val;
     logic[31:0] branch_off;
-    assign     branch_addr = branch_base + branch_off;
+    wire [31:1] branch_addr = branch_base + branch_off;
+    logic       is_mret;
+    assign      addr        = is_mret ? epc_val : branch_addr;
+    
     always @(*) begin
         if (axo_insn_opcode(insn) == `RV_OP_JAL) begin
             // Jump and link relative.
-            branch_off[0]        = 0;
-            branch_off[10:1]     = insn[30:21];
-            branch_off[11]       = insn[20];
-            branch_off[19:12]    = insn[19:12];
-            branch_off[20]       = insn[31];
+            branch_off[0]       = 0;
+            branch_off[10:1]    = insn[30:21];
+            branch_off[11]      = insn[20];
+            branch_off[19:12]   = insn[19:12];
+            branch_off[20]      = insn[31];
+            is_mret             = 0;
             
         end else if (axo_insn_opcode(insn) == `RV_OP_JALR) begin
             // Jump and link register.
-            branch_off[11:0]     = insn[31:20];
-            branch_off[20:12]    = insn[31] ? 9'h1ff : 9'h000;
+            branch_off[11:0]    = insn[31:20];
+            branch_off[20:12]   = insn[31] ? 9'h1ff : 9'h000;
+            is_mret             = 0;
             
-        end else /*if (axo_insn_opcode(insn) == `RV_OP_BRANCH)*/ begin
+        end else if (axo_insn_opcode(insn) == `RV_OP_BRANCH) begin
             // Conditional branches.
-            branch_off[0]        = 0;
-            branch_off[4:1]      = insn[11:8];
-            branch_off[10:5]     = insn[30:25];
-            branch_off[11]       = insn[7];
-            branch_off[12]       = insn[30];
-            branch_off[20:13]    = insn[31] ? 8'hff : 8'h00;
+            branch_off[0]       = 0;
+            branch_off[4:1]     = insn[11:8];
+            branch_off[10:5]    = insn[30:25];
+            branch_off[11]      = insn[7];
+            branch_off[12]      = insn[30];
+            branch_off[20:13]   = insn[31] ? 8'hff : 8'h00;
+            is_mret             = 0;
+            
+        end else begin
+            // Only other control transfer instructions is:
+            // MRET / SRET.
+            branch_off[20:0]    = 'bx;
+            is_mret             = 1;
         end
         branch_off[31:21] = branch_off[20] ? 11'h7ff : 11'h000;
     end
@@ -134,7 +153,7 @@ module axo_reg_decoder#(
     `include "axo_functions.sv"
     
     always @(*) begin
-        has_rs1 = 'bx; has_rs2 = 'bx; has_rs3 = 'bx; has_rd = 'bx;
+        has_rs1 = 'b0; has_rs2 = 'b0; has_rs3 = 'b0; has_rd = 'b0;
         case (axo_insn_opcode(insn))
             `RV_OP_LOAD:        begin has_rs1 = 1; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
             `RV_OP_LOAD_FP:     if (f) begin has_rs1 = 1; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
@@ -186,8 +205,6 @@ module axo_insn_validator#(
     parameter has_zicsr = 0,
     // Allow fence.i instructions.
     parameter has_zifencei = 0,
-    // Allow M-mode instructions.
-    parameter has_m_mode = 0,
     // Allow S-mode instructions.
     parameter has_s_mode = 0
 )(
@@ -216,7 +233,6 @@ module axo_insn_validator#(
     wire allow_q        = (misa & `RV_MISA_Q) && has_q;
     wire allow_zicsr    = has_zicsr;
     wire allow_zifencei = has_zifencei;
-    wire allow_m_mode   = has_m_mode;
     wire allow_s_mode   = (misa & `RV_MISA_S) && has_s_mode;
     
     
@@ -278,8 +294,8 @@ module axo_insn_validator#(
                 default:            begin valid_system = 0;          legal_system = 1; end
                 12'b0000000_0000?:  begin valid_system = 1;          legal_system = 1; end
                 12'b0001000_00010:  begin valid_system = has_s_mode; legal_system = privilege[0]; end
-                12'b0011000_00010:  begin valid_system = has_m_mode; legal_system = privilege[1]; end
-                12'b0011000_00101:  begin valid_system = has_m_mode; legal_system = 1; end
+                12'b0011000_00010:  begin valid_system = 1;          legal_system = privilege[1]; end
+                12'b0011000_00101:  begin valid_system = 1;          legal_system = 1; end
             endcase
         end else begin
             // CSR instructions.
@@ -334,12 +350,12 @@ module axo_csr_helper#(
     // IMM or register value.
     input  logic[XLEN-1:0] bitmask,
     // FUNCT3 from SYSTEM opcode.
-    input  logic[2:0]      FUNCT3,
+    input  logic[2:0]      funct3,
     // CSR new value.
     output logic[XLEN-1:0] dout
 );
     always @(*) begin
-        case (FUNCT3)
+        case (funct3)
             `RV_SYSTEM_CSRRC:  dout = old & ~bitmask;
             `RV_SYSTEM_CSRRCI: dout = old & ~bitmask;
             `RV_SYSTEM_CSRRS:  dout = old | bitmask;
