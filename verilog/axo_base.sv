@@ -14,30 +14,30 @@ module axo_regfile#(
     parameter XLEN = 32
 )(
     // Write synchronisation.
-    input  wire           clk,
+    input  logic           clk,
     // When raised to 1, reset all registers to 0.
-    input  wire           rst,
+    input  logic           rst,
     
     // Write index.
     // Index 0 is ignored.
-    input  wire[4:0]      rd,
+    input  logic[4:0]      rd,
     // Read index 1.
     // Index 0 always yields output of zero.
-    input  wire[4:0]      rs1,
+    input  logic[4:0]      rs1,
     // Read index 2.
     // Index 0 always yields output of zero.
-    input  wire[4:0]      rs2,
+    input  logic[4:0]      rs2,
     
     // Write enable.
     // Must be high when `clk` rises to enable writes.
-    input  wire           we,
+    input  logic           we,
     
     // Write data.
-    input  wire[XLEN-1:0] din,
+    input  logic[XLEN-1:0] din,
     // Read data 1.
-    output wire[XLEN-1:0] dout1,
+    output logic[XLEN-1:0] dout1,
     // Read data 2.
-    output wire[XLEN-1:0] dout2
+    output logic[XLEN-1:0] dout2
 );
     
     // Used for resetting.
@@ -79,38 +79,38 @@ endmodule
 
 // Determines the address for jump or conditional branch instructions.
 module axo_branch_target(
-    input  wire[31:0] insn,
-    input  wire[31:1] pc_val,
-    input  wire[31:0] rs1_val,
-    output wire[31:1] branch_addr
+    input  logic[31:0] insn,
+    input  logic[31:1] pc_val,
+    input  logic[31:0] rs1_val,
+    output logic[31:1] branch_addr
 );
-    wire[31:0] branch_base = insn[3:2] == 2'b01 ? rs1_val : pc_val;
-    reg [31:0] branch_off;
+    wire [31:0] branch_base = insn[3:2] == 2'b01 ? rs1_val : pc_val;
+    logic[31:0] branch_off;
     assign     branch_addr = branch_base + branch_off;
     always @(*) begin
         if (axo_insn_opcode(insn) == `RV_OP_JAL) begin
             // Jump and link relative.
-            branch_off[0]        <= 0;
-            branch_off[10:1]     <= insn[30:21];
-            branch_off[11]       <= insn[20];
-            branch_off[19:12]    <= insn[19:12];
-            branch_off[20]       <= insn[31];
+            branch_off[0]        = 0;
+            branch_off[10:1]     = insn[30:21];
+            branch_off[11]       = insn[20];
+            branch_off[19:12]    = insn[19:12];
+            branch_off[20]       = insn[31];
             
         end else if (axo_insn_opcode(insn) == `RV_OP_JALR) begin
             // Jump and link register.
-            branch_off[11:0]     <= insn[31:20];
-            branch_off[20:12]    <= insn[31] ? 9'h1ff : 9'h000;
+            branch_off[11:0]     = insn[31:20];
+            branch_off[20:12]    = insn[31] ? 9'h1ff : 9'h000;
             
         end else /*if (axo_insn_opcode(insn) == `RV_OP_BRANCH)*/ begin
             // Conditional branches.
-            branch_off[0]        <= 0;
-            branch_off[4:1]      <= insn[11:8];
-            branch_off[10:5]     <= insn[30:25];
-            branch_off[11]       <= insn[7];
-            branch_off[12]       <= insn[30];
-            branch_off[20:13]    <= insn[31] ? 8'hff : 8'h00;
+            branch_off[0]        = 0;
+            branch_off[4:1]      = insn[11:8];
+            branch_off[10:5]     = insn[30:25];
+            branch_off[11]       = insn[7];
+            branch_off[12]       = insn[30];
+            branch_off[20:13]    = insn[31] ? 8'hff : 8'h00;
         end
-        branch_off[31:21] <= branch_off[20] ? 10'h3ff : 10'h000;
+        branch_off[31:21] = branch_off[20] ? 11'h7ff : 11'h000;
     end
 endmodule
 
@@ -125,11 +125,11 @@ module axo_reg_decoder#(
     // Check for RV64 instructions.
     parameter rv64 = 0
 )(
-    input  wire[31:0] insn,
-    output reg        has_rs1,
-    output reg        has_rs2,
-    output reg        has_rs3,
-    output reg        has_rd
+    input  logic[31:0]  insn,
+    output logic        has_rs1,
+    output logic        has_rs2,
+    output logic        has_rs3,
+    output logic        has_rd
 );
     `include "axo_functions.sv"
     
@@ -192,19 +192,19 @@ module axo_insn_validator#(
     parameter has_s_mode = 0
 )(
     // Instruction to verify.
-    input  wire[31:0] insn,
+    input  logic[31:0] insn,
     // Current privilege level.
-    input  wire[1:0]  privilege,
+    input  logic[1:0]  privilege,
     // Allow RV64 instructions.
-    input  wire       rv64,
+    input  logic       rv64,
     // Current value of misa.
-    input  wire[31:0] misa,
+    input  logic[31:0] misa,
     
     // Instruction is recognised.
-    output reg        valid,
+    output logic       valid,
     // Instruction is allowed in current privilege level.
     // May still be 1 if valid is 0.
-    output reg        legal
+    output logic       legal
 );
     `include "axo_functions.sv"
     
@@ -222,7 +222,7 @@ module axo_insn_validator#(
     
     
     // ALU operation verifier.
-    reg valid_op_imm;
+    logic valid_op_imm;
     always @(*) begin
         if (axo_insn_funct3(insn) == `RV_ALU_SLL) begin
             // Shift left.
@@ -238,7 +238,7 @@ module axo_insn_validator#(
         end
     end
     
-    reg valid_op;
+    logic valid_op;
     always @(*) begin
         if (insn[25]) begin
             // Multiply / divide.
@@ -269,8 +269,8 @@ module axo_insn_validator#(
     
     
     // SYSTEM opcode verifier.
-    reg valid_system;
-    reg legal_system;
+    logic valid_system;
+    logic legal_system;
     always @(*) begin
         if (axo_insn_funct3(insn) == 3'b000) begin
             // Privileged instructions.
@@ -330,13 +330,13 @@ module axo_csr_helper#(
     parameter XLEN = 32
 )(
     // CSR old value.
-    input  wire[XLEN-1:0] old,
+    input  logic[XLEN-1:0] old,
     // IMM or register value.
-    input  wire[XLEN-1:0] bitmask,
+    input  logic[XLEN-1:0] bitmask,
     // FUNCT3 from SYSTEM opcode.
-    input  wire[2:0]      FUNCT3,
+    input  logic[2:0]      FUNCT3,
     // CSR new value.
-    output reg [XLEN-1:0] dout
+    output logic[XLEN-1:0] dout
 );
     always @(*) begin
         case (FUNCT3)

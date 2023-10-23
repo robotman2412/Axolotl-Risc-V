@@ -45,44 +45,44 @@ module axo_rv32im_zicsr#(
     parameter mhartid      = 32'h0000_0000
 )(
     // Clock source.
-    input  wire clk,
+    input  logic clk,
     // Clock source for mtime.
-    input  wire rtc_clk,
+    input  logic rtc_clk,
     // Reset signal.
-    input  wire rst,
+    input  logic rst,
     // CPU ready to run code.
     // While this wire is LOW, the CPU is not available for debugging and does not run code.
-    output wire ready,
+    output logic ready,
     
     
     // Read from memory
-    output wire       mem_re,
+    output logic       mem_re,
     // Write to memory.
-    output wire       mem_we,
+    output logic       mem_we,
     // Memory access size in 2^n bytes.
-    output wire[1:0]  mem_asize,
+    output logic[1:0]  mem_asize,
     // Memory ready: the CPU will stall on memory OPs while 0.
-    input  wire       mem_ready,
+    input  logic       mem_ready,
     
     // Memory address bus.
-    output wire[31:0] mem_addr,
+    output logic[31:0] mem_addr,
     // Memory data bus.
-    inout  wire[31:0] mem_data,
+    inout  wire [31:0] mem_data,
     
     
     // Read from program.
-    output wire       prog_re,
+    output logic       prog_re,
     // Program ready: the CPU will stall loading instructions while 0.
-    input  wire       prog_ready,
+    input  logic       prog_ready,
     
     // Program address bus.
-    output wire[31:1] prog_addr,
+    output logic[31:1] prog_addr,
     // Program data bus.
-    input  wire[31:0] prog_data,
+    input  logic[31:0] prog_data,
     
     
     // External interrupts 16 to 31.
-    input  wire[15:0] irq
+    input  logic[15:0] irq
     
     
     // TODO: Debug port.
@@ -98,125 +98,125 @@ module axo_rv32im_zicsr#(
     
     /* Exception logic */
     // Exception from EX stage.
-    wire        tr_ex;
+    logic       tr_ex;
     // EX exception cause.
-    wire[4:0]   tr_ex_cause;
+    logic[4:0]  tr_ex_cause;
     // Interrupts pending.
-    wire[31:0]  tr_irq = irq << 16;
+    logic[31:0] tr_irq = irq << 16;
     // Interrupt or trap raised.
-    reg         tr_trap;
+    logic       tr_trap;
     // Interrupt or trap cause.
-    reg [4:0]   tr_trap_cause;
+    logic[4:0]  tr_trap_cause;
     // Is an interrupt.
-    reg         tr_is_interrupt;
+    logic       tr_is_interrupt;
     // Interrupt enabled mask.
-    wire[31:0]  tr_ie;
+    logic[31:0] tr_ie;
     // Interrupt vector.
-    wire[31:2]  tr_vec;
+    logic[31:2] tr_vec;
     
     /* Pipeline hazard avoidance logic */
     // Stall IF stage.
-    wire        fw_stall_if;
+    logic       fw_stall_if;
     // Stall ID stage.
-    wire        fw_stall_id;
+    logic       fw_stall_id;
     // Stall EX stage.
-    wire        fw_stall_ex;
+    logic       fw_stall_ex;
     // Forward result to LHS.
-    wire        fw_lhs;
+    logic       fw_lhs;
     // Forward result to RHS.
-    wire        fw_rhs;
+    logic       fw_rhs;
     // Processing a jump or conditional branch.
-    wire        fw_branch;
+    logic       fw_branch;
     // Branch prediction result.
-    wire        fw_branch_predict;
+    logic       fw_branch_predict;
     // Branch misprediction detected.
-    wire        fw_branch_error;
+    logic       fw_branch_error;
     
     /* Pipeline stage 1/3: fetch */
     // IF: Instruction length.
-    wire        if_len;
+    logic       if_len;
     // IF: Next instruction address.
-    wire[31:1]  if_next_pc;
+    logic[31:1] if_next_pc;
     // IF: Program counter.
-    reg [31:1]  if_pc;
+    reg  [31:1] if_pc;
     // IF: Unpredicted path.
-    reg [31:1]  if_alt_pc;
+    reg  [31:1] if_alt_pc;
     // IF: Dispatch trap.
-    wire        if_trap;
+    logic       if_trap;
     // IF: Trap cause.
-    wire[4:0]   if_cause;
+    logic[4:0]  if_cause;
     
     /* Pipeline barrier: fetch/decode */
     // IF/ID: Contains valid decode state.
     reg         b_if_id_valid;
     // IF/ID: Current PC.
-    reg [31:1]  b_if_id_pc;
+    reg  [31:1] b_if_id_pc;
     // IF/ID: Instruction length.
     reg         b_if_id_len;
     // IF/ID: Instruction word.
-    reg [31:0]  b_if_id_insn;
+    reg  [31:0] b_if_id_insn;
     // IF/ID: Trap dispatched.
     // Exempt from b_if_id_valid.
     reg         b_if_id_trap;
     // IF/ID: Trap cause.
     // Exempt from b_if_id_valid.
-    reg [4:0]   b_if_id_cause;
+    reg  [4:0]  b_if_id_cause;
     
     /* Pipeline stage 2/3: decode */
     // ID: CSR number or address offset.
-    reg [11:0]  id_off;
+    logic[11:0] id_off;
     // ID: Branch target address.
-    wire[31:1]  id_branch_addr;
+    logic[31:1] id_branch_addr;
     // ID: Instruction is jump or branch.
-    wire        id_is_branch;
+    logic       id_is_branch;
     // ID: Branch is predicted taken.
-    wire        id_branch_predict;
+    logic       id_branch_predict;
     // ID: Instruction is valid.
-    wire        id_insn_valid;
+    logic       id_insn_valid;
     // ID: Instruction is legal in current privilege mode.
-    wire        id_insn_legal;
+    logic       id_insn_legal;
     // ID: Instruction has RS1.
-    wire        id_has_rs1;
+    logic       id_has_rs1;
     // ID: Instruction has RS2.
-    wire        id_has_rs2;
+    logic       id_has_rs2;
     // ID: Instruction has RS3 (floating-point only).
-    wire        id_has_rs3;
+    logic       id_has_rs3;
     // ID: Instruction has RD.
-    wire        id_has_rd;
+    logic       id_has_rd;
     // ID: RS1 register number.
-    wire[4:0]   id_rs1;
+    logic[4:0]  id_rs1;
     // ID: RS2 register number.
-    wire[4:0]   id_rs2;
+    logic[4:0]  id_rs2;
     // ID: RD register number.
-    wire[4:0]   id_rd;
+    logic[4:0]  id_rd;
     // ID: Value of RS1.
-    wire[31:0]  id_rs1_val;
+    logic[31:0] id_rs1_val;
     // ID: Value of RS2.
-    wire[31:0]  id_rs2_val;
+    logic[31:0] id_rs2_val;
     // ID: Left-hand side operand / RS1.
-    reg [31:0]  id_lhs;
+    logic[31:0] id_lhs;
     // ID: Right-hand side operand / RS2.
-    reg [31:0]  id_rhs;
+    logic[31:0] id_rhs;
     // ID: Dispatch trap.
-    wire        id_trap;
+    logic       id_trap;
     // ID: Trap cause.
-    wire[4:0]   id_cause;
+    logic[4:0]  id_cause;
     
     /* Pipeline barrier: decode/execute */
     // ID/EX: Contains valid execution state.
     reg         b_id_ex_valid;
     // ID/EX: RD register number, or 0 if unused.
-    reg [4:0]   b_id_ex_rd;
+    reg  [4:0]  b_id_ex_rd;
     // ID/EX: Left-hand side operand / RS1.
-    reg [31:0]  b_id_ex_lhs;
+    reg  [31:0] b_id_ex_lhs;
     // ID/EX: Right-hand side operand / RS2.
-    reg [31:0]  b_id_ex_rhs;
+    reg  [31:0] b_id_ex_rhs;
     // ID/EX: CSR number or address offset.
-    reg [11:0]  b_id_ex_off;
+    reg  [11:0] b_id_ex_off;
     // ID/EX: Current PC.
-    reg [31:1]  b_id_ex_pc;
+    reg  [31:1] b_id_ex_pc;
     // ID/EX: Instruction word.
-    reg [31:0]  b_id_ex_insn;
+    reg  [31:0] b_id_ex_insn;
     // ID/EX: Branch predictor result.
     reg         b_id_ex_branch_predict;
     // ID/EX: Trap dispatched.
@@ -224,37 +224,37 @@ module axo_rv32im_zicsr#(
     reg         b_id_ex_trap;
     // ID/EX: Trap cause.
     // Exempt from b_id_ex_valid.
-    reg [4:0]   b_id_ex_cause;
+    reg  [4:0]  b_id_ex_cause;
     
     /* Pipeline stage 3/3: execute */
     // EX: Contains valid result.
-    wire        ex_valid;
+    logic       ex_valid;
     // EX: ALU result.
-    wire[31:0]  ex_alu_res;
+    logic[31:0] ex_alu_res;
     // EX: CSR write enable.
-    reg         ex_csr_we;
+    logic       ex_csr_we;
     // EX: CSR write data.
-    wire[31:0]  ex_csr_din;
+    logic[31:0] ex_csr_din;
     // EX: CSR result.
-    wire[31:0]  ex_csr_res;
+    logic[31:0] ex_csr_res;
     // EX: Memory address.
-    wire[31:0]  ex_addr;
+    logic[31:0] ex_addr;
     // EX: Destrination register.
-    wire[4:0]   ex_rd;
+    logic[4:0]  ex_rd;
     // EX: Result to write back to registers.
-    reg [31:0]  ex_result;
+    logic[31:0] ex_result;
     // EX: Instruction is memory access.
-    wire        ex_is_mem;
+    logic       ex_is_mem;
     // EX: Instruction is a conditional branch.
-    wire        ex_is_branch;
+    logic       ex_is_branch;
     // EX: Conditional branch result.
-    wire        ex_branch_taken;
+    logic       ex_branch_taken;
     // EX: Conditional branch was mispredicted.
-    wire        ex_branch_error;
+    logic       ex_branch_error;
     // EX: Dispatch trap.
-    wire        ex_trap;
+    logic       ex_trap;
     // EX: Trap cause.
-    wire[4:0]   ex_cause;
+    logic[4:0]  ex_cause;
     
     
     
@@ -625,89 +625,89 @@ module axo_rv32im_zicsr_csrs#(
     parameter mhartid = 32'h0000_0000
 )(
     // Clock.
-    input  wire         clk,
+    input  logic         clk,
     // Reset.
-    input  wire         rst,
+    input  logic         rst,
     
     // CSR address.
-    input  wire[11:0]   addr,
+    input  logic[11:0]   addr,
     // CSR write data.
-    input  wire[31:0]   din,
+    input  logic[31:0]   din,
     // CSR read data.
-    output reg [31:0]   dout,
+    output logic[31:0]   dout,
     // CSR write enable.
-    input  wire         we,
+    input  logic         we,
     // Illegal or invalid CSR access.
-    output wire         invalid,
+    output logic         invalid,
     
     // Current interrupts pending.
-    input  wire[31:0]   mip,
+    input  logic[31:0]   mip,
     // Program counter to save on trap or interrupt.
-    input  wire[31:1]   mepc,
+    input  logic[31:1]   mepc,
     // Cause of interrupt / trap being dispatched.
-    input  wire[4:0]    cause,
+    input  logic[4:0]    cause,
     // Trap or interrupt dispatched.
-    input  wire         trap,
+    input  logic         trap,
     // Is an interrupt.
-    input  wire         is_int,
+    input  logic         is_int,
     
     // Current interrupts enabled, masked by CSR mie and CSR mstatus.
-    output wire[31:0]   mie,
+    output logic[31:0]   mie,
     // Current trap and interrupt vector.
-    output wire[31:2]   mtvec
+    output logic[31:2]   mtvec
 );
     /* ==== CSR STORAGE ==== */
     // CSR mstatus: M-mode previous interrupt enable.
-    reg         csr_mstatus_mpie;
+    logic        csr_mstatus_mpie;
     // CSR mstatus: M-mode interrupt enable.
-    reg         csr_mstatus_mie;
+    logic        csr_mstatus_mie;
     // CSR mcause: Interrupt number / trap number.
-    reg [4:0]   csr_mcause_no;
+    logic[4:0]   csr_mcause_no;
     // CSR mcause: Is an interrupt.
-    reg         csr_mcause_int;
+    logic        csr_mcause_int;
     
     // CSR mstatus: M-mode status.
-    wire[31:0]  csr_mstatus     = (csr_mstatus_mie << 3) | (csr_mstatus_mpie << 7);
+    wire [31:0] csr_mstatus     = (csr_mstatus_mie << 3) | (csr_mstatus_mpie << 7);
     // CSR misa: M-mode ISA description.
-    wire[31:0]  csr_misa        = 32'h4001_0100;
+    wire [31:0] csr_misa        = 32'h4001_0100;
     // CSR medeleg: M-mode trap delegation.
-    wire[31:0]  csr_medeleg     = 0;
+    wire [31:0] csr_medeleg     = 0;
     // CSR medeleg: M-mode interrupt delegation.
-    wire[31:0]  csr_mideleg     = 0;
+    wire [31:0] csr_mideleg     = 0;
     // CSR mie: M-mode per-interrupt enable.
-    reg [31:0]  csr_mie;
+    reg  [31:0] csr_mie;
     // CSR mtvec: M-mode trap and interrupt vector.
-    reg [31:2]  csr_mtvec;
+    reg  [31:2] csr_mtvec;
     // CSR mstatush: M-mode status.
-    wire[31:0]  csr_mstatush    = 0;
+    wire [31:0] csr_mstatush    = 0;
     // CSR mip: M-mode interrupts pending.
-    wire[31:0]  csr_mip         = mip;
+    wire [31:0] csr_mip         = mip;
     // CSR mscratch: M-mode scratch pad register.
-    reg [31:0]  csr_mscratch;
+    reg  [31:0] csr_mscratch;
     // CSR mepc: M-mode exception program counter.
-    reg [31:1]  csr_mepc;
+    reg  [31:1] csr_mepc;
     // CSR mcause: M-mode interrupt / trap cause.
-    wire[31:0]  csr_mcause      = (csr_mcause_int << 31) | csr_mcause_int;
+    wire [31:0] csr_mcause      = (csr_mcause_int << 31) | csr_mcause_int;
     // CSR mtval: M-mode trap value.
-    wire[31:0]  csr_mtval       = 0;
+    wire [31:0] csr_mtval       = 0;
     // CSR mvendorid: M-mode vendor ID.
-    wire[31:0]  csr_mvendorid   = 0;
+    wire [31:0] csr_mvendorid   = 0;
     // CSR mvendorid: M-mode architecture ID.
-    wire[31:0]  csr_marchid     = 0;
+    wire [31:0] csr_marchid     = 0;
     // CSR mvendorid: M-mode implementation ID.
-    wire[31:0]  csr_mipid       = 0;
+    wire [31:0] csr_mipid       = 0;
     // CSR mvendorid: M-mode implementation ID.
-    wire[31:0]  csr_mhartid     = mhartid;
+    wire [31:0] csr_mhartid     = mhartid;
     // CSR mvendorid: M-mode configuration pointer.
-    wire[31:0]  csr_mconfigptr  = 0;
+    wire [31:0] csr_mconfigptr  = 0;
     
     
     
     /* ==== MISCELLANEOUS LOGIC ==== */
     // CSR exists.
-    reg         csr_exists;
+    logic       csr_exists;
     // CSR is writeable.
-    reg         csr_writeable;
+    logic       csr_writeable;
     // CSR access logic.
     assign      invalid = !csr_exists || (!csr_writeable && we);
     
