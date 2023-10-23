@@ -37,6 +37,13 @@ module unaligned_ram #(
 	assign data[23:16] = !re || asize < 2 ? 'bz : storage[addr+2];
 	assign data[31:24] = !re || asize < 2 ? 'bz : storage[addr+3];
 	
+	integer i;
+	initial begin
+		for (i = 0; i < depth; i = i + 1) begin
+			storage[i] <= 0;
+		end
+	end
+	
 	always @(posedge clk) begin
 		// Write logic.
 		if (we) begin
@@ -79,8 +86,6 @@ module aligned_ram #(
 	// Misalignment error.
 	output wire alignerr
 );
-	integer i;
-	
 	// Internal storage.
 	reg[31:0] storage[depth-1:0];
 	
@@ -88,6 +93,7 @@ module aligned_ram #(
 	reg[31:0] dout;
 	assign data = re ? dout : 'bz;
 	
+	integer i;
 	initial begin
 		// Init RAM to zero.
 		for (i = 0; i < depth; i=i+1) begin

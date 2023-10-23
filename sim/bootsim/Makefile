@@ -2,6 +2,7 @@
 .PHONY: all build clean run wave
 
 HDL = 	top.sv \
+ 		../memories.sv \
 		../../verilog/axo_alu_rv32im.sv \
 		../../verilog/axo_base.sv \
 		../../verilog/axo_rv32im_zicsr.sv

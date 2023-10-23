@@ -41,7 +41,7 @@ module axo32_alu_rv32im(
     always @(*) begin
         if (axo_insn_opcode(insn) == `RV_OP_OP && insn[25]) begin
             // MULDIV ops.
-            res = insn[14] ? divres : mulres;
+            res = insn[14] ? divres : insn[13:12] != 0 ? mulres[63:32] : mulres[31:0];
         end else if (axo_insn_is_alu(insn) && axo_insn_funct3(insn) != 0) begin
             // Logic ops.
             res = logicres;
@@ -57,8 +57,8 @@ module axo32_alu_rv32im(
     // Multiplier.
     always @(*) begin
         case (axo_insn_funct3(insn))
-            default:            mulres = lhs  * rhs;
-            `RV_MULDIV_MULH:    mulres = slhs * srhs;
+            default:            mulres = slhs * srhs;
+            `RV_MULDIV_MULHU:   mulres = lhs  * rhs;
             `RV_MULDIV_MULHSU:  mulres = slhs * rhs;
         endcase
     end
@@ -66,10 +66,10 @@ module axo32_alu_rv32im(
     // Divider.
     always @(*) begin
         case (axo_insn_funct3(insn))
-            default:            mulres = slhs / srhs;
-            `RV_MULDIV_DIVU:    mulres = lhs  / rhs;
-            `RV_MULDIV_REM:     mulres = slhs % srhs;
-            `RV_MULDIV_REMU:    mulres = lhs  % rhs;
+            default:            divres = slhs / srhs;
+            `RV_MULDIV_DIVU:    divres = lhs  / rhs;
+            `RV_MULDIV_REM:     divres = slhs % srhs;
+            `RV_MULDIV_REMU:    divres = lhs  % rhs;
         endcase
     end
     

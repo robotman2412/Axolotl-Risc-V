@@ -112,6 +112,10 @@ module axo_rv32im_zicsr#(
     wire        id_is_branch;
     // ID: Branch is predicted taken.
     wire        id_branch_predict;
+    // ID: Instruction is valid.
+    wire        id_insn_valid;
+    // ID: Instruction is legal in current privilege mode.
+    wire        id_insn_legal;
     // ID: Instruction has RS1.
     wire        id_has_rs1;
     // ID: Instruction has RS2.
@@ -130,18 +134,14 @@ module axo_rv32im_zicsr#(
     wire[31:0]  id_rs1_val;
     // ID: Value of RS2.
     wire[31:0]  id_rs2_val;
-    // ID/EX: Left-hand side operand / RS1.
+    // ID: Left-hand side operand / RS1.
     reg [31:0]  id_lhs;
-    // ID/EX: Right-hand side operand / RS2.
+    // ID: Right-hand side operand / RS2.
     reg [31:0]  id_rhs;
     
     /* Pipeline barrier: decode/execute */
     // ID/EX: Contains valid execution state.
     reg         b_id_ex_valid;
-    // ID/EX: RS1 register number, or 0 if unused.
-    reg [4:0]   b_id_ex_rs1;
-    // ID/EX: RS2 register number, or 0 if unused.
-    reg [4:0]   b_id_ex_rs2;
     // ID/EX: RD register number, or 0 if unused.
     reg [4:0]   b_id_ex_rd;
     // ID/EX: Left-hand side operand / RS1.
@@ -152,12 +152,6 @@ module axo_rv32im_zicsr#(
     reg [11:0]  b_id_ex_off;
     // ID/EX: Instruction word.
     reg [31:0]  b_id_ex_insn;
-    // ID/EX: Memory read enable.
-    reg         b_id_ex_mem_re;
-    // ID/EX: Memory write enable.
-    reg         b_id_ex_mem_we;
-    // ID/EX: Memory access size in 2^n bytes.
-    reg [1:0]   b_id_ex_mem_asize;
     // ID/EX: Branch predictor result.
     reg         b_id_ex_branch_predict;
     
@@ -172,6 +166,8 @@ module axo_rv32im_zicsr#(
     wire[4:0]   ex_rd;
     // EX: Result to write back to registers.
     reg [31:0]  ex_result;
+    // EX: Instruction is memory access.
+    wire        ex_is_mem;
     // EX: Instruction is a conditional branch.
     wire        ex_is_branch;
     // EX: Conditional branch result.
@@ -275,6 +271,25 @@ module axo_rv32im_zicsr#(
     
     
     /* ==== PIPELINE STAGE 2/3: DECODE ==== */
+    // Instruction validator.
+    axo_insn_validator#(.has_m(1)) validator(
+        b_if_id_insn, 2'b11, 1'b0, 32'hffff_ffff,
+        id_insn_valid, id_insn_legal
+    );
+    
+    // always @(negedge clk) begin
+    //     if (!rst_latch && b_if_id_valid) begin
+    //         if (!id_insn_valid) begin
+    //             $strobe("ID: %08x: Invalid instruction", b_if_id_insn);
+    //         end else if (!id_insn_legal) begin
+    //             $strobe("ID: %08x: No permission for instruction", b_if_id_insn);
+    //         end else begin
+    //             $strobe("ID: %08x: OK", b_if_id_insn);
+    //         end
+    //     end
+    // end
+    
+    // Register file.
     assign id_rs1 = axo_insn_rs1(b_if_id_insn);
     assign id_rs2 = axo_insn_rs2(b_if_id_insn);
     assign id_rd  = axo_insn_rd(b_if_id_insn);
@@ -291,11 +306,11 @@ module axo_rv32im_zicsr#(
             // CSR number.
             id_off          <= b_if_id_insn[31:20];
             
-        end else if (axo_insn_opcode(b_if_id_insn) & ~1 == `RV_OP_LOAD) begin
+        end else if (axo_insn_opcode(b_if_id_insn) == `RV_OP_LOAD) begin
             // Memory load offset.
             id_off          <= b_if_id_insn[31:20];
             
-        end else /*if (axo_insn_opcode(b_if_id_insn) & ~1 == `RV_OP_STORE)*/ begin
+        end else /*if (axo_insn_opcode(b_if_id_insn) == `RV_OP_STORE)*/ begin
             // Memory store offset.
             id_off[11:5]    <= b_if_id_insn[31:25];
             id_off[4:0]     <= b_if_id_insn[11:7];
@@ -367,32 +382,21 @@ module axo_rv32im_zicsr#(
         if (rst_latch) begin
             // Reset.
             b_id_ex_valid           <= 0;
-            b_id_ex_rs1             <= 0;
-            b_id_ex_rs2             <= 0;
             b_id_ex_rd              <= 0;
             b_id_ex_lhs             <= 0;
             b_id_ex_rhs             <= 0;
             b_id_ex_off             <= 0;
             b_id_ex_insn            <= 0;
-            b_id_ex_mem_re          <= 0;
-            b_id_ex_mem_we          <= 0;
-            b_id_ex_mem_asize       <= 0;
             b_id_ex_branch_predict  <= 0;
         end else if (!fw_stall_id) begin
             // Discard decoded insn on branch error or if loaded insn is bad.
             b_id_ex_valid           <= b_if_id_valid && !fw_branch_error;
             // Latch decoded instruction data.
-            b_id_ex_rs1             <= id_has_rs1 ? id_rs1 : 0;
-            b_id_ex_rs2             <= id_has_rs2 ? id_rs2 : 0;
             b_id_ex_rd              <= id_has_rd ? id_rd : 0;
             b_id_ex_lhs             <= id_lhs;
             b_id_ex_rhs             <= id_rhs;
             b_id_ex_off             <= id_off;
             b_id_ex_insn            <= b_if_id_insn;
-            // TODO: Memory access logic.
-            b_id_ex_mem_re          <= 0;
-            b_id_ex_mem_we          <= 0;
-            b_id_ex_mem_asize       <= 0;
             // Latch branch prediction for possible correction.
             b_id_ex_branch_predict  <= id_branch_predict;
         end else begin
@@ -409,7 +413,7 @@ module axo_rv32im_zicsr#(
     
     // ALU logic.
     axo32_alu_rv32im alu(
-        b_id_ex_insn, b_id_ex_lhs, b_id_ex_rhs,
+        b_id_ex_insn, b_id_ex_lhs, ex_is_mem ? b_id_ex_off : b_id_ex_rhs,
         ex_alu_res, ex_addr
     );
     
@@ -419,25 +423,37 @@ module axo_rv32im_zicsr#(
     assign ex_branch_error = ex_is_branch && ex_branch_taken != b_id_ex_branch_predict;
     
     // Memory access logic.
-    assign mem_we    = ex_valid && b_id_ex_mem_we;
-    assign mem_re    = ex_valid && b_id_ex_mem_re;
+    assign ex_is_mem = b_id_ex_valid && (axo_insn_opcode(b_id_ex_insn) == `RV_OP_STORE || axo_insn_opcode(b_id_ex_insn) == `RV_OP_LOAD);
+    assign mem_we    = ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_STORE;
+    assign mem_re    = ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_LOAD;
     assign mem_data  = mem_we ? b_id_ex_rhs : 'bz;
-    assign mem_asize = b_id_ex_mem_asize;
+    assign mem_asize = b_id_ex_insn[13:12];
     assign mem_addr  = ex_addr;
     
     // TODO: CSR regfile.
     
     // Result logic.
     always @(*) begin
-        if (b_id_ex_mem_re || b_id_ex_mem_we) begin
+        if (ex_is_mem) begin
             // Memory access instruction.
-            ex_result <= mem_data;
+            case (mem_asize)
+                0:  begin
+                    ex_result[7:0]  = mem_data[7:0];
+                    ex_result[31:8] = mem_data[7] && b_id_ex_insn[14] ? 24'hffffff : 24'h000000;
+                end
+                1:  begin
+                    ex_result[15:0]  = mem_data[15:0];
+                    ex_result[31:16] = mem_data[15] && b_id_ex_insn[14] ? 16'hffff : 16'h0000;
+                end
+                2:  ex_result <= mem_data;
+                3:  ex_result <= 'bx;
+            endcase
         end else if (0) begin
             // TODO: CSR access instruction.
-            ex_result <= 0;
+            ex_result = 0;
         end else begin
             // ALU things.
-            ex_result <= ex_alu_res;
+            ex_result = ex_alu_res;
         end
     end
     

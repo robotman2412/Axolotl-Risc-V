@@ -69,7 +69,7 @@ module axo_regfile#(
             // Except for `x0`, write handler.
             if (rd != 0 && we) begin
                 data[rd] = din;
-                $display("x%0d = %08h", rd, din);
+                // $display("x%0d = %08h", rd, din);
             end
         end
     end
@@ -134,36 +134,189 @@ module axo_reg_decoder#(
     `include "axo_functions.sv"
     
     always @(*) begin
-        has_rs1 <= 'bx; has_rs2 <= 'bx; has_rs3 <= 'bx; has_rd <= 'bx;
+        has_rs1 = 'bx; has_rs2 = 'bx; has_rs3 = 'bx; has_rd = 'bx;
         case (axo_insn_opcode(insn))
-            `RV_OP_LOAD:        begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_LOAD_FP:     if (f) begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_MISC_MEM:    begin has_rs1 <= 0; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 0; end
-            `RV_OP_OP_IMM:      begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_AUIPC:       begin has_rs1 <= 0; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_OP_IMM_32:   if (rv64) begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_STORE:       begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 0; end
-            `RV_OP_STORE_FP:    if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 0; end
-            `RV_OP_AMO:         if (a) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_OP:          begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_LUI:         begin has_rs1 <= 0; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_OP_32:       if (rv64) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_MADD:        if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 1; has_rd <= 1; end
-            `RV_OP_MSUB:        if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 1; has_rd <= 1; end
-            `RV_OP_NMSUB:       if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 1; has_rd <= 1; end
-            `RV_OP_NMADD:       if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 1; has_rd <= 1; end
-            `RV_OP_OP_FP:       if (f) begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_BRANCH:      begin has_rs1 <= 1; has_rs2 <= 1; has_rs3 <= 0; has_rd <= 0; end
-            `RV_OP_JALR:        begin has_rs1 <= 1; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
-            `RV_OP_JAL:         begin has_rs1 <= 0; has_rs2 <= 0; has_rs3 <= 0; has_rd <= 1; end
+            `RV_OP_LOAD:        begin has_rs1 = 1; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_LOAD_FP:     if (f) begin has_rs1 = 1; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_MISC_MEM:    begin has_rs1 = 0; has_rs2 = 0; has_rs3 = 0; has_rd = 0; end
+            `RV_OP_OP_IMM:      begin has_rs1 = 1; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_AUIPC:       begin has_rs1 = 0; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_OP_IMM_32:   if (rv64) begin has_rs1 = 1; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_STORE:       begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 0; has_rd = 0; end
+            `RV_OP_STORE_FP:    if (f) begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 0; has_rd = 0; end
+            `RV_OP_AMO:         if (a) begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_OP:          begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_LUI:         begin has_rs1 = 0; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_OP_32:       if (rv64) begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_MADD:        if (f) begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 1; has_rd = 1; end
+            `RV_OP_MSUB:        if (f) begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 1; has_rd = 1; end
+            `RV_OP_NMSUB:       if (f) begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 1; has_rd = 1; end
+            `RV_OP_NMADD:       if (f) begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 1; has_rd = 1; end
+            `RV_OP_OP_FP:       if (f) begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_BRANCH:      begin has_rs1 = 1; has_rs2 = 1; has_rs3 = 0; has_rd = 0; end
+            `RV_OP_JALR:        begin has_rs1 = 1; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
+            `RV_OP_JAL:         begin has_rs1 = 0; has_rs2 = 0; has_rs3 = 0; has_rd = 1; end
             `RV_OP_SYSTEM:
                 begin
                     if (insn[14:12] != 0) begin
-                        has_rs1 <= !insn[14]; has_rs2 <= 0; has_rd <= 1;
+                        has_rs1 = !insn[14]; has_rs2 = 0; has_rd = 1;
                     end else begin
-                        has_rs1 <= 0; has_rs2 <= 0; has_rd <= 0;
+                        has_rs1 = 0; has_rs2 = 0; has_rd = 0;
                     end
                 end
+        endcase
+    end
+endmodule
+
+
+
+// Verifies the validity of an uncompressed instruction.
+module axo_insn_validator#(
+    // Allow multiply/divide instructions.
+    parameter has_m = 0,
+    // Allow atomic instructions.
+    parameter has_a = 0,
+    // Allow float instructions.
+    parameter has_f = 0,
+    // Allow double instructions.
+    parameter has_d = 0,
+    // Allow long double instructions.
+    parameter has_q = 0,
+    // Allow CSR instructions.
+    parameter has_zicsr = 0,
+    // Allow fence.i instructions.
+    parameter has_zifencei = 0,
+    // Allow M-mode instructions.
+    parameter has_m_mode = 0,
+    // Allow S-mode instructions.
+    parameter has_s_mode = 0
+)(
+    // Instruction to verify.
+    input  wire[31:0] insn,
+    // Current privilege level.
+    input  wire[1:0]  privilege,
+    // Allow RV64 instructions.
+    input  wire       rv64,
+    // Current value of misa.
+    input  wire[31:0] misa,
+    
+    // Instruction is recognised.
+    output reg        valid,
+    // Instruction is allowed in current privilege level.
+    // May still be 1 if valid is 0.
+    output reg        legal
+);
+    `include "axo_functions.sv"
+    
+    // Evaluate misa.
+    wire allow_m        = (misa & `RV_MISA_M) && has_m;
+    wire allow_a        = (misa & `RV_MISA_A) && has_a;
+    wire allow_f        = (misa & `RV_MISA_F) && has_f;
+    wire allow_d        = (misa & `RV_MISA_D) && has_d;
+    wire allow_q        = (misa & `RV_MISA_Q) && has_q;
+    wire allow_zicsr    = has_zicsr;
+    wire allow_zifencei = has_zifencei;
+    wire allow_m_mode   = has_m_mode;
+    wire allow_s_mode   = (misa & `RV_MISA_S) && has_s_mode;
+    
+    
+    
+    // ALU operation verifier.
+    reg valid_op_imm;
+    always @(*) begin
+        if (axo_insn_funct3(insn) == `RV_ALU_SLL) begin
+            // Shift left.
+            valid_op_imm = insn[31:26] == 0 && (rv64 && !insn[3] || !insn[25]);
+            
+        end else if (axo_insn_funct3(insn) == `RV_ALU_SRL) begin
+            // Shift right.
+            valid_op_imm = insn[31] == 0 && insn[29:26] == 0 && (rv64 && !insn[5] || !insn[25]);
+            
+        end else begin
+            // Any other OP-IMM or OP-IMM-32.
+            valid_op_imm = 1;
+        end
+    end
+    
+    reg valid_op;
+    always @(*) begin
+        if (insn[25]) begin
+            // Multiply / divide.
+            if (rv64 && insn[3]) begin
+                valid_op = insn[31:26] == 0 && (insn[14] || insn[13:12] != 0);
+            end else begin
+                valid_op = insn[31:26] == 0;
+            end
+            
+        end else if (axo_insn_funct3(insn) == `RV_ALU_SLL) begin
+            // Shift left.
+            valid_op = insn[31:26] == 0 && (rv64 && !insn[3] || !insn[25]);
+            
+        end else if (axo_insn_funct3(insn) == `RV_ALU_SRL) begin
+            // Shift right.
+            valid_op = insn[31] == 0 && insn[29:26] == 0 && (rv64 && !insn[3] || !insn[25]);
+            
+        end else if (axo_insn_funct3(insn) == `RV_ALU_ADD) begin
+            // Add / subtract.
+            valid_op = insn[31] == 0 && insn[29:26] == 0 && (rv64 && !insn[3] || !insn[25]);
+            
+        end else begin
+            // Any other OP or OP-32.
+            valid_op = insn[31:25] == 0;
+        end
+    end
+    
+    
+    
+    // SYSTEM opcode verifier.
+    reg valid_system;
+    reg legal_system;
+    always @(*) begin
+        if (axo_insn_funct3(insn) == 3'b000) begin
+            // Privileged instructions.
+            casex (insn[31:20])
+                default:            begin valid_system = 0;          legal_system = 1; end
+                12'b0000000_0000?:  begin valid_system = 1;          legal_system = 1; end
+                12'b0001000_00010:  begin valid_system = has_s_mode; legal_system = privilege[0]; end
+                12'b0011000_00010:  begin valid_system = has_m_mode; legal_system = privilege[1]; end
+                12'b0011000_00101:  begin valid_system = has_m_mode; legal_system = 1; end
+            endcase
+        end else begin
+            // CSR instructions.
+            valid_system = axo_insn_funct3(insn) != 3'b100;
+            legal_system = 1;
+        end
+    end
+    
+    
+    
+    // Output multiplexer.
+    always @(*) begin
+        legal = 1;
+        if (insn[1:0] != 2'b11) begin
+            valid = 0;
+        end else case (axo_insn_opcode(insn))
+            `RV_OP_LOAD:        begin valid = insn[14] ? insn[13:12] < 2 + rv64 : insn[13:12] < 3 + rv64; end
+            `RV_OP_LOAD_FP:     begin valid = 0; $strobe("TODO: validity for LOAD_FP"); end
+            `RV_OP_MISC_MEM:    begin valid = insn[14:13] == 0; end
+            `RV_OP_OP_IMM:      begin valid = valid_op_imm; end
+            `RV_OP_AUIPC:       begin valid = 1; end
+            `RV_OP_OP_IMM_32:   begin valid = rv64 && valid_op_imm; end
+            `RV_OP_STORE:       begin valid = insn[14] == 0 && insn[13:12] <= 2 + rv64; end
+            `RV_OP_STORE_FP:    begin valid = 0; $strobe("TODO: validity for STORE_FP"); end
+            `RV_OP_AMO:         begin valid = allow_a; end
+            `RV_OP_OP:          begin valid = valid_op; end
+            `RV_OP_LUI:         begin valid = 1; end
+            `RV_OP_OP_32:       begin valid = rv64 && valid_op; end
+            `RV_OP_MADD:        begin valid = 0; $strobe("TODO: validity for MADD"); end
+            `RV_OP_MSUB:        begin valid = 0; $strobe("TODO: validity for MSUB"); end
+            `RV_OP_NMSUB:       begin valid = 0; $strobe("TODO: validity for NMSUB"); end
+            `RV_OP_NMADD:       begin valid = 0; $strobe("TODO: validity for NMADD"); end
+            `RV_OP_OP_FP:       begin valid = 0; $strobe("TODO: validity for OP_FP"); end
+            `RV_OP_BRANCH:      begin valid = insn[14] || !insn[13]; end
+            `RV_OP_JALR:        begin valid = insn[14:12] == 0; end
+            `RV_OP_JAL:         begin valid = 1; end
+            `RV_OP_SYSTEM:      begin valid = valid_system; legal = legal_system; end
         endcase
     end
 endmodule
