@@ -8,14 +8,41 @@
 
 `include "axo_defines.sv"
 
-// Axolotl³² RV32IM_Zicsr processor.
-// Pipeline: fetch, decode, execute
-// Implemented CSRs: TODO.
-// Interrupts: TODO.
-// Privilege modes: M-mode only
+/*
+    Axolotl³² RV32IM_Zicsr processor.
+    
+    Pipeline: fetch, decode, execute
+    IPC: 0.33 min, 0.80 avg, 1.00 max
+    
+    IALIGN: 16
+    Interrupts: 16 external, 1 internal
+    Privilege modes: M-mode only
+    
+    Implemented CSRs:
+        0x300   mstatus
+        0x301   misa        (RV32IM)
+        0x302   medeleg     (0)
+        0x303   mideleg     (0)
+        0x304   mie
+        0x305   mtvec
+        0x310   mstatush    (0)
+        
+        0x344   mip
+        0x340   mscratch
+        0x341   mepc
+        0x342   mcause
+        0x343   mtval (0)
+        
+        0xf11   mvendorid   (0)
+        0xf12   marchid     (0)
+        0xf13   mipid       (0)
+        0xf14   mhartid     (parameter)
+        0xf15   mconfigptr  (0)
+*/
 module axo_rv32im_zicsr#(
-    parameter entrypoint = 32'h4000_0000,
-    parameter cpummio_addr = 32'hffff_ff00
+    parameter entrypoint   = 32'h4000_0000,
+    parameter cpummio_addr = 32'hffff_ff00,
+    parameter mhartid      = 32'h0000_0000
 )(
     // Clock source.
     input  wire clk,
@@ -51,7 +78,11 @@ module axo_rv32im_zicsr#(
     // Program address bus.
     output wire[31:1] prog_addr,
     // Program data bus.
-    input  wire[31:0] prog_data
+    input  wire[31:0] prog_data,
+    
+    
+    // External interrupts 16 to 31.
+    input  wire[15:0] irq
     
     
     // TODO: Debug port.
@@ -64,6 +95,24 @@ module axo_rv32im_zicsr#(
     reg         rst_latch;
     // Reset detect signal.
     reg         rst_detect;
+    
+    /* Exception logic */
+    // Exception from EX stage.
+    wire        tr_ex;
+    // EX exception cause.
+    wire[4:0]   tr_ex_cause;
+    // Interrupts pending.
+    wire[31:0]  tr_irq = irq << 16;
+    // Interrupt or trap raised.
+    reg         tr_trap;
+    // Interrupt or trap cause.
+    reg [4:0]   tr_trap_cause;
+    // Is an interrupt.
+    reg         tr_is_interrupt;
+    // Interrupt enabled mask.
+    wire[31:0]  tr_ie;
+    // Interrupt vector.
+    wire[31:2]  tr_vec;
     
     /* Pipeline hazard avoidance logic */
     // Stall IF stage.
@@ -92,6 +141,10 @@ module axo_rv32im_zicsr#(
     reg [31:1]  if_pc;
     // IF: Unpredicted path.
     reg [31:1]  if_alt_pc;
+    // IF: Dispatch trap.
+    wire        if_trap;
+    // IF: Trap cause.
+    wire[4:0]   if_cause;
     
     /* Pipeline barrier: fetch/decode */
     // IF/ID: Contains valid decode state.
@@ -102,6 +155,12 @@ module axo_rv32im_zicsr#(
     reg         b_if_id_len;
     // IF/ID: Instruction word.
     reg [31:0]  b_if_id_insn;
+    // IF/ID: Trap dispatched.
+    // Exempt from b_if_id_valid.
+    reg         b_if_id_trap;
+    // IF/ID: Trap cause.
+    // Exempt from b_if_id_valid.
+    reg [4:0]   b_if_id_cause;
     
     /* Pipeline stage 2/3: decode */
     // ID: CSR number or address offset.
@@ -138,6 +197,10 @@ module axo_rv32im_zicsr#(
     reg [31:0]  id_lhs;
     // ID: Right-hand side operand / RS2.
     reg [31:0]  id_rhs;
+    // ID: Dispatch trap.
+    wire        id_trap;
+    // ID: Trap cause.
+    wire[4:0]   id_cause;
     
     /* Pipeline barrier: decode/execute */
     // ID/EX: Contains valid execution state.
@@ -150,16 +213,30 @@ module axo_rv32im_zicsr#(
     reg [31:0]  b_id_ex_rhs;
     // ID/EX: CSR number or address offset.
     reg [11:0]  b_id_ex_off;
+    // ID/EX: Current PC.
+    reg [31:1]  b_id_ex_pc;
     // ID/EX: Instruction word.
     reg [31:0]  b_id_ex_insn;
     // ID/EX: Branch predictor result.
     reg         b_id_ex_branch_predict;
+    // ID/EX: Trap dispatched.
+    // Exempt from b_id_ex_valid.
+    reg         b_id_ex_trap;
+    // ID/EX: Trap cause.
+    // Exempt from b_id_ex_valid.
+    reg [4:0]   b_id_ex_cause;
     
     /* Pipeline stage 3/3: execute */
     // EX: Contains valid result.
     wire        ex_valid;
     // EX: ALU result.
     wire[31:0]  ex_alu_res;
+    // EX: CSR write enable.
+    reg         ex_csr_we;
+    // EX: CSR write data.
+    wire[31:0]  ex_csr_din;
+    // EX: CSR result.
+    wire[31:0]  ex_csr_res;
     // EX: Memory address.
     wire[31:0]  ex_addr;
     // EX: Destrination register.
@@ -174,6 +251,10 @@ module axo_rv32im_zicsr#(
     wire        ex_branch_taken;
     // EX: Conditional branch was mispredicted.
     wire        ex_branch_error;
+    // EX: Dispatch trap.
+    wire        ex_trap;
+    // EX: Trap cause.
+    wire[4:0]   ex_cause;
     
     
     
@@ -195,6 +276,40 @@ module axo_rv32im_zicsr#(
     
     always @(posedge clk) begin
         rst_detect <= rst_latch;
+    end
+    
+    
+    
+    /* ==== EXCEPTION LOGIC ==== */
+    // Get traps from EX stage.
+    assign tr_ex        = b_id_ex_trap || ex_trap;
+    assign tr_ex_cause  = b_id_ex_trap ? b_id_ex_cause : ex_cause;
+    
+    // Trap and interrupt detection.
+    integer irq_no;
+    always @(*) begin
+        if (tr_ex) begin
+            // Prioritise traps over interrupts.
+            tr_trap         = 1;
+            tr_trap_cause   = tr_ex_cause;
+            tr_is_interrupt = 0;
+            
+        end else if (tr_irq & tr_ie) begin
+            // Prioritise the lowest numbered interrupt.
+            tr_trap         = 0;
+            tr_trap_cause   = 'bx;
+            tr_is_interrupt = 1;
+            for (irq_no = 31; irq_no >= 0; irq_no = irq_no - 1) begin
+                if (tr_ie[irq_no] && tr_irq[irq_no]) begin
+                    tr_trap = 1;
+                    tr_trap_cause = irq_no;
+                end
+            end
+        end else begin
+            tr_trap         = 0;
+            tr_trap_cause   = 'bx;
+            tr_is_interrupt = 'bx;
+        end
     end
     
     
@@ -228,7 +343,9 @@ module axo_rv32im_zicsr#(
             if_alt_pc <= 0;
         end else if (!fw_stall_if) begin
             // Next PC.
-            if (fw_branch_error) begin
+            if (tr_trap) begin
+                if_pc <= tr_vec;
+            end else if (fw_branch_error) begin
                 if_pc <= if_alt_pc;
             end else if (id_is_branch && fw_branch_predict) begin
                 if_pc <= id_branch_addr;
@@ -244,6 +361,10 @@ module axo_rv32im_zicsr#(
         end
     end
     
+    // Trap logic.
+    assign if_trap  = 0;
+    assign if_cause = 0;
+    
     
     
     /* ==== PIPELINE BARRIER: FETCH/DECODE ==== */
@@ -254,14 +375,18 @@ module axo_rv32im_zicsr#(
             b_if_id_len     <= 0;
             b_if_id_pc      <= 0;
             b_if_id_insn    <= 0;
+            b_if_id_trap    <= 0;
+            b_if_id_cause   <= 0;
         end else if (!fw_stall_if) begin
             // Discard loaded insn on branch error.
-            b_if_id_valid   <= !(fw_branch && fw_branch_predict) && !fw_branch_error;
+            b_if_id_valid   <= !(fw_branch && fw_branch_predict) && !fw_branch_error && !tr_trap;
             // Latch loaded instruction data.
             b_if_id_len     <= if_len;
             b_if_id_pc      <= if_pc;
-            // TODO: Decompress RVC instructions.
             b_if_id_insn    <= prog_data;
+            // Trap information.
+            b_if_id_trap    <= if_trap;
+            b_if_id_cause   <= if_cause;
         end else begin
             // Stalled; results are invalid.
             b_if_id_valid   <= 0;
@@ -277,17 +402,17 @@ module axo_rv32im_zicsr#(
         id_insn_valid, id_insn_legal
     );
     
-    // always @(negedge clk) begin
-    //     if (!rst_latch && b_if_id_valid) begin
-    //         if (!id_insn_valid) begin
-    //             $strobe("ID: %08x: Invalid instruction", b_if_id_insn);
-    //         end else if (!id_insn_legal) begin
-    //             $strobe("ID: %08x: No permission for instruction", b_if_id_insn);
-    //         end else begin
-    //             $strobe("ID: %08x: OK", b_if_id_insn);
-    //         end
-    //     end
-    // end
+    always @(negedge clk) begin
+        if (!rst_latch && b_if_id_valid) begin
+            if (!id_insn_valid) begin
+                $strobe("ID: %08x: Invalid instruction", b_if_id_insn);
+            end else if (!id_insn_legal) begin
+                $strobe("ID: %08x: No permission for instruction", b_if_id_insn);
+            end else begin
+                $strobe("ID: %08x: OK", b_if_id_insn);
+            end
+        end
+    end
     
     // Register file.
     assign id_rs1 = axo_insn_rs1(b_if_id_insn);
@@ -375,6 +500,10 @@ module axo_rv32im_zicsr#(
         end
     end
     
+    // Trap logic.
+    assign id_trap  = b_if_id_valid && !id_insn_valid;
+    assign id_cause = `RV_ECAUSE_IILLEGAL;
+    
     
     
     /* ==== PIPELINE BARRIER: DECODE/EXECUTE ==== */
@@ -386,19 +515,26 @@ module axo_rv32im_zicsr#(
             b_id_ex_lhs             <= 0;
             b_id_ex_rhs             <= 0;
             b_id_ex_off             <= 0;
+            b_id_ex_pc              <= 0;
             b_id_ex_insn            <= 0;
             b_id_ex_branch_predict  <= 0;
+            b_id_ex_trap            <= 0;
+            b_id_ex_cause           <= 0;
         end else if (!fw_stall_id) begin
             // Discard decoded insn on branch error or if loaded insn is bad.
-            b_id_ex_valid           <= b_if_id_valid && !fw_branch_error;
+            b_id_ex_valid           <= b_if_id_valid && !fw_branch_error && !tr_trap;
             // Latch decoded instruction data.
             b_id_ex_rd              <= id_has_rd ? id_rd : 0;
             b_id_ex_lhs             <= id_lhs;
             b_id_ex_rhs             <= id_rhs;
             b_id_ex_off             <= id_off;
+            b_id_ex_pc              <= b_if_id_pc;
             b_id_ex_insn            <= b_if_id_insn;
             // Latch branch prediction for possible correction.
             b_id_ex_branch_predict  <= id_branch_predict;
+            // Trap information.
+            b_id_ex_trap            <= b_if_id_trap || id_trap;
+            b_id_ex_cause           <= b_if_id_trap ? b_if_id_cause : id_cause;
         end else begin
             // Stalled; results are invalid.
             b_id_ex_valid           <= 0;
@@ -408,7 +544,7 @@ module axo_rv32im_zicsr#(
     
     
     /* ==== PIPELINE STAGE 3/3: EXECUTE ==== */
-    assign ex_valid = b_id_ex_valid && !fw_stall_ex;
+    assign ex_valid = b_id_ex_valid && !fw_stall_ex && !tr_trap;
     assign ex_rd    = b_id_ex_rd;
     
     // ALU logic.
@@ -430,7 +566,25 @@ module axo_rv32im_zicsr#(
     assign mem_asize = b_id_ex_insn[13:12];
     assign mem_addr  = ex_addr;
     
-    // TODO: CSR regfile.
+    // CSR access logic.
+    always @(*) begin
+        if (axo_insn_opcode(b_id_ex_insn) != `RV_OP_SYSTEM || axo_insn_funct3(b_id_ex_insn) == 0) begin
+            ex_csr_we = 0;
+        end else begin
+            ex_csr_we = !b_id_ex_insn[13] || (axo_insn_rs1(b_id_ex_insn) != 0);
+        end
+    end
+    
+    axo_csr_helper csr_io(
+        ex_csr_res, b_id_ex_insn[14] ? axo_insn_rs1(b_id_ex_insn) : b_id_ex_lhs, axo_insn_funct3(b_id_ex_insn), ex_csr_din
+    );
+    
+    axo_rv32im_zicsr_csrs csrs(
+        clk, rst_latch,
+        b_id_ex_off, ex_csr_din, ex_csr_res, ex_csr_we, ex_csr_trap,
+        tr_irq, b_id_ex_pc, tr_trap_cause, tr_trap, tr_is_interrupt,
+        tr_ie, tr_vec
+    );
     
     // Result logic.
     always @(*) begin
@@ -448,13 +602,176 @@ module axo_rv32im_zicsr#(
                 2:  ex_result <= mem_data;
                 3:  ex_result <= 'bx;
             endcase
-        end else if (0) begin
-            // TODO: CSR access instruction.
-            ex_result = 0;
+        end else if (axo_insn_opcode(b_id_ex_insn) == `RV_OP_SYSTEM && axo_insn_funct3(b_id_ex_insn) != 0) begin
+            // CSR access instruction.
+            ex_result = ex_csr_res;
         end else begin
             // ALU things.
             ex_result = ex_alu_res;
         end
     end
     
+    // Trap logic.
+    assign ex_trap  = b_id_ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_SYSTEM && axo_insn_funct3(b_id_ex_insn) != 0 && ex_csr_trap;
+    assign ex_cause = `RV_ECAUSE_IILLEGAL;
+    
+endmodule
+
+
+
+// CSR register file for Axolotl³² RV32IM_Zicsr processor.
+// This register file is implementation-specific.
+module axo_rv32im_zicsr_csrs#(
+    parameter mhartid = 32'h0000_0000
+)(
+    // Clock.
+    input  wire         clk,
+    // Reset.
+    input  wire         rst,
+    
+    // CSR address.
+    input  wire[11:0]   addr,
+    // CSR write data.
+    input  wire[31:0]   din,
+    // CSR read data.
+    output reg [31:0]   dout,
+    // CSR write enable.
+    input  wire         we,
+    // Illegal or invalid CSR access.
+    output wire         invalid,
+    
+    // Current interrupts pending.
+    input  wire[31:0]   mip,
+    // Program counter to save on trap or interrupt.
+    input  wire[31:1]   mepc,
+    // Cause of interrupt / trap being dispatched.
+    input  wire[4:0]    cause,
+    // Trap or interrupt dispatched.
+    input  wire         trap,
+    // Is an interrupt.
+    input  wire         is_int,
+    
+    // Current interrupts enabled, masked by CSR mie and CSR mstatus.
+    output wire[31:0]   mie,
+    // Current trap and interrupt vector.
+    output wire[31:2]   mtvec
+);
+    /* ==== CSR STORAGE ==== */
+    // CSR mstatus: M-mode previous interrupt enable.
+    reg         csr_mstatus_mpie;
+    // CSR mstatus: M-mode interrupt enable.
+    reg         csr_mstatus_mie;
+    // CSR mcause: Interrupt number / trap number.
+    reg [4:0]   csr_mcause_no;
+    // CSR mcause: Is an interrupt.
+    reg         csr_mcause_int;
+    
+    // CSR mstatus: M-mode status.
+    wire[31:0]  csr_mstatus     = (csr_mstatus_mie << 3) | (csr_mstatus_mpie << 7);
+    // CSR misa: M-mode ISA description.
+    wire[31:0]  csr_misa        = 32'h4001_0100;
+    // CSR medeleg: M-mode trap delegation.
+    wire[31:0]  csr_medeleg     = 0;
+    // CSR medeleg: M-mode interrupt delegation.
+    wire[31:0]  csr_mideleg     = 0;
+    // CSR mie: M-mode per-interrupt enable.
+    reg [31:0]  csr_mie;
+    // CSR mtvec: M-mode trap and interrupt vector.
+    reg [31:2]  csr_mtvec;
+    // CSR mstatush: M-mode status.
+    wire[31:0]  csr_mstatush    = 0;
+    // CSR mip: M-mode interrupts pending.
+    wire[31:0]  csr_mip         = mip;
+    // CSR mscratch: M-mode scratch pad register.
+    reg [31:0]  csr_mscratch;
+    // CSR mepc: M-mode exception program counter.
+    reg [31:1]  csr_mepc;
+    // CSR mcause: M-mode interrupt / trap cause.
+    wire[31:0]  csr_mcause      = (csr_mcause_int << 31) | csr_mcause_int;
+    // CSR mtval: M-mode trap value.
+    wire[31:0]  csr_mtval       = 0;
+    // CSR mvendorid: M-mode vendor ID.
+    wire[31:0]  csr_mvendorid   = 0;
+    // CSR mvendorid: M-mode architecture ID.
+    wire[31:0]  csr_marchid     = 0;
+    // CSR mvendorid: M-mode implementation ID.
+    wire[31:0]  csr_mipid       = 0;
+    // CSR mvendorid: M-mode implementation ID.
+    wire[31:0]  csr_mhartid     = mhartid;
+    // CSR mvendorid: M-mode configuration pointer.
+    wire[31:0]  csr_mconfigptr  = 0;
+    
+    
+    
+    /* ==== MISCELLANEOUS LOGIC ==== */
+    // CSR exists.
+    reg         csr_exists;
+    // CSR is writeable.
+    reg         csr_writeable;
+    // CSR access logic.
+    assign      invalid = !csr_exists || (!csr_writeable && we);
+    
+    // Output logic.
+    assign mie   = csr_mstatus_mie ? csr_mie : 0;
+    assign mtvec = csr_mtvec;
+    
+    
+    
+    /* ==== CSR ACCESS LOGIC ==== */
+    always @(*) begin
+        // CSR read and permission logic.
+        case(addr)
+            `RV_CSR_MSTATUS:    begin csr_exists = 1; csr_writeable = 1; dout = csr_mstatus; end
+            `RV_CSR_MISA:       begin csr_exists = 1; csr_writeable = 1; dout = csr_misa; end
+            `RV_CSR_MEDELEG:    begin csr_exists = 1; csr_writeable = 1; dout = csr_medeleg; end
+            `RV_CSR_MIDELEG:    begin csr_exists = 1; csr_writeable = 1; dout = csr_mideleg; end
+            `RV_CSR_MIE:        begin csr_exists = 1; csr_writeable = 1; dout = csr_mie; end
+            `RV_CSR_MTVEC:      begin csr_exists = 1; csr_writeable = 1; dout = csr_mtvec; end
+            `RV_CSR_MSTATUSH:   begin csr_exists = 1; csr_writeable = 1; dout = csr_mstatush; end
+            `RV_CSR_MIP:        begin csr_exists = 1; csr_writeable = 1; dout = csr_mip; end
+            `RV_CSR_MSCRATCH:   begin csr_exists = 1; csr_writeable = 1; dout = csr_mscratch; end
+            `RV_CSR_MEPC:       begin csr_exists = 1; csr_writeable = 1; dout = csr_mepc; end
+            `RV_CSR_MCAUSE:     begin csr_exists = 1; csr_writeable = 1; dout = csr_mcause; end
+            `RV_CSR_MTVAL:      begin csr_exists = 1; csr_writeable = 1; dout = csr_mtval; end
+            `RV_CSR_MVENDORID:  begin csr_exists = 1; csr_writeable = 0; dout = csr_mvendorid; end
+            `RV_CSR_MARCHID:    begin csr_exists = 1; csr_writeable = 0; dout = csr_marchid; end
+            `RV_CSR_MIPID:      begin csr_exists = 1; csr_writeable = 0; dout = csr_mipid; end
+            `RV_CSR_MHARTID:    begin csr_exists = 1; csr_writeable = 0; dout = csr_mhartid; end
+            `RV_CSR_MCONFIGPTR: begin csr_exists = 1; csr_writeable = 0; dout = csr_mconfigptr; end
+            default:            begin csr_exists = 0; csr_writeable = 0; dout = 'bx; end
+        endcase
+    end
+    
+    always @(posedge clk) begin
+        if (rst) begin
+            // Rset CSRs to default values.
+            csr_mstatus_mpie    <= 0;
+            csr_mstatus_mie     <= 0;
+            csr_mcause_int      <= 0;
+            csr_mcause_no       <= 0;
+            csr_mie             <= 0;
+            csr_mtvec           <= 0;
+            csr_mscratch        <= 0;
+            csr_mepc            <= 0;
+            
+        end else if (trap) begin
+            // CSR changes on trap or interrupt.
+            csr_mstatus_mpie    <= 1;
+            csr_mstatus_mie     <= 0;
+            csr_mepc            <= mepc;
+            csr_mcause_int      <= is_int;
+            csr_mcause_no       <= cause;
+            
+        end else if (we) begin
+            // CSR write logic.
+            case (addr)
+                `RV_CSR_MSTATUS:    begin csr_mstatus_mpie <= din[7]; csr_mstatus_mie <= din[3]; end
+                `RV_CSR_MIE:        begin csr_mie <= din; end
+                `RV_CSR_MTVEC:      begin csr_mtvec <= din; end
+                `RV_CSR_MSCRATCH:   begin csr_mscratch <= din; end
+                `RV_CSR_MEPC:       begin csr_mepc <= din; end
+                `RV_CSR_MCAUSE:     begin csr_mcause_int <= din[31]; csr_mcause_no <= din[4:0]; end
+            endcase
+        end
+    end
 endmodule

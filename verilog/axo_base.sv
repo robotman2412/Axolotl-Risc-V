@@ -69,7 +69,7 @@ module axo_regfile#(
             // Except for `x0`, write handler.
             if (rd != 0 && we) begin
                 data[rd] = din;
-                // $display("x%0d = %08h", rd, din);
+                $display("x%0d = %08h", rd, din);
             end
         end
     end
@@ -296,6 +296,7 @@ module axo_insn_validator#(
         if (insn[1:0] != 2'b11) begin
             valid = 0;
         end else case (axo_insn_opcode(insn))
+            default:            begin valid = 0; end
             `RV_OP_LOAD:        begin valid = insn[14] ? insn[13:12] < 2 + rv64 : insn[13:12] < 3 + rv64; end
             `RV_OP_LOAD_FP:     begin valid = 0; $strobe("TODO: validity for LOAD_FP"); end
             `RV_OP_MISC_MEM:    begin valid = insn[14:13] == 0; end
@@ -331,27 +332,21 @@ module axo_csr_helper#(
     // CSR old value.
     input  wire[XLEN-1:0] old,
     // IMM or register value.
-    input  wire[XLEN-1:0]  bitmask,
+    input  wire[XLEN-1:0] bitmask,
     // FUNCT3 from SYSTEM opcode.
     input  wire[2:0]      FUNCT3,
-    // CSR write enable.
-    input  wire           write,
     // CSR new value.
-    output reg [XLEN-1:0] new
+    output reg [XLEN-1:0] dout
 );
     always @(*) begin
-        if (write) begin
-            case (FUNCT3)
-                `RV_SYSTEM_CSRRC:  new = old & ~bitmask;
-                `RV_SYSTEM_CSRRCI: new = old & ~bitmask;
-                `RV_SYSTEM_CSRRS:  new = old | bitmask;
-                `RV_SYSTEM_CSRRSI: new = old | bitmask;
-                `RV_SYSTEM_CSRRW:  new = bitmask;
-                `RV_SYSTEM_CSRRWI: new = bitmask;
-                default: new = old;
-            endcase
-        end else begin
-            new = old;
-        end
+        case (FUNCT3)
+            `RV_SYSTEM_CSRRC:  dout = old & ~bitmask;
+            `RV_SYSTEM_CSRRCI: dout = old & ~bitmask;
+            `RV_SYSTEM_CSRRS:  dout = old | bitmask;
+            `RV_SYSTEM_CSRRSI: dout = old | bitmask;
+            `RV_SYSTEM_CSRRW:  dout = bitmask;
+            `RV_SYSTEM_CSRRWI: dout = bitmask;
+            default: dout = 'bx;
+        endcase
     end
 endmodule

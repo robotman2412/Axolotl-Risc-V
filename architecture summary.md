@@ -43,11 +43,9 @@ If I have enough spare time, this would evolve up to implementing supervisor mod
 | Divide                    | Yes
 | Atomics                   | No
 | Compressed instructions   | No
-| Privilege modes           | None<sup>(1)</sup>
+| Privilege modes           | M
 | Memory protection         | No
 | Virtual memory            | No
-
-(1) The RISC-V privileged specification is not implemented; this is different than implementing only M-mode.
 
 ## Minimum viable product
 | Feature                   | Implementation

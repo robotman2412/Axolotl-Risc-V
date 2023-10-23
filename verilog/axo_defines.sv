@@ -101,3 +101,61 @@
 `define RV_MISA_Z 1 << 25
 
 
+
+// RISC-V trap causes.
+`define RV_ECAUSE_ILIGN     5'h00
+`define RV_ECAUSE_IACCESS   5'h01
+`define RV_ECAUSE_IILLEGAL  5'h02
+`define RV_ECAUSE_EBREAK    5'h03
+`define RV_ECAUSE_LALIGN    5'h04
+`define RV_ECAUSE_LACCESS   5'h05
+`define RV_ECAUSE_SALIGN    5'h06
+`define RV_ECAUSE_SACCESS   5'h07
+`define RV_ECAUSE_U_ECALL   5'h08
+`define RV_ECAUSE_S_ECALL   5'h09
+`define RV_ECAUSE_M_ECALL   5'h0B
+`define RV_ECAUSE_IPAGE     5'h0C
+`define RV_ECAUSE_LPAGE     5'h0D
+`define RV_ECAUSE_SPAGE     5'h0F
+
+
+
+// Defined RISC-V CSR addresses.
+`define RV_CSR_FFLAGS       12'h001
+`define RV_CSR_FRM          12'h002
+`define RV_CSR_FCSR         12'h003
+
+`define RV_CSR_SSTATUS      12'h100
+`define RV_CSR_SIE          12'h104
+`define RV_CSR_STVEC        12'h105
+`define RV_CSR_SENVCFG      12'h10A
+`define RV_CSR_SSCRATCH     12'h140
+`define RV_CSR_SEPC         12'h141
+`define RV_CSR_SCAUSE       12'h142
+`define RV_CSR_STVAL        12'h143
+`define RV_CSR_SIP          12'h144
+`define RV_CSR_SATP         12'h180
+
+`define RV_CSR_MSTATUS      12'h300
+`define RV_CSR_MISA         12'h301
+`define RV_CSR_MEDELEG      12'h302
+`define RV_CSR_MIDELEG      12'h303
+`define RV_CSR_MIE          12'h304
+`define RV_CSR_MTVEC        12'h305
+`define RV_CSR_MENVCFG      12'h30A
+`define RV_CSR_MSTATUSH     12'h310
+`define RV_CSR_MENVCFGH     12'h31A
+`define RV_CSR_MSCRATCH     12'h340
+`define RV_CSR_MEPC         12'h341
+`define RV_CSR_MCAUSE       12'h342
+`define RV_CSR_MTVAL        12'h343
+`define RV_CSR_MIP          12'h344
+`define RV_CSR_MINST        12'h34A
+`define RV_CSR_MTVAL2       12'h34B
+`define RV_CSR_MSECCFG      12'h747
+`define RV_CSR_MSECCFGH     12'h757
+`define RV_CSR_MVENDORID    12'hF11
+`define RV_CSR_MARCHID      12'hF12
+`define RV_CSR_MIPID        12'hF13
+`define RV_CSR_MHARTID      12'hF14
+`define RV_CSR_MCONFIGPTR   12'hF15

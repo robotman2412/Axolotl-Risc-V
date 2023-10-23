@@ -13,14 +13,14 @@ all: wave
 
 build/rom.sv: $(SRC)
 	@mkdir -p build
-	@riscv32-unknown-elf-gcc -ffreestanding -nostdlib -nodefaultlibs -march=rv32im -mabi=ilp32 -Tlinker.ld -o build/rom.elf $^
+	@riscv32-unknown-elf-gcc -ffreestanding -nostdlib -nodefaultlibs -march=rv32im_zicsr -mabi=ilp32 -Tlinker.ld -o build/rom.elf $^
 	@riscv32-unknown-elf-objcopy -O binary build/rom.elf build/rom.bin
 	@../bin2rom.py build/rom.bin build/rom.sv rom 16
 	@riscv32-unknown-elf-objdump -t build/rom.elf
 
 build/sim.vvp: $(HDL) build/rom.sv
 	@mkdir -p build
-	@iverilog -I. -I../../verilog $(HDL) -o build/sim.vvp
+	@iverilog -g2012 -I. -I../../verilog $(HDL) -o build/sim.vvp
 
 build: build/sim.vvp
 
