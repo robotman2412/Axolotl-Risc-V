@@ -102,7 +102,7 @@ module axo_rv32im_zicsr#(
     // EX exception cause.
     logic[4:0]  tr_ex_cause;
     // Interrupts pending.
-    logic[31:0] tr_irq = irq << 16;
+    wire [31:0] tr_irq = irq << 16;
     // Interrupt or trap raised.
     logic       tr_trap;
     // Interrupt or trap cause.

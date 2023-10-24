@@ -12,6 +12,7 @@ endmodule
 module top(
 );
     reg         clk = 0;
+    reg [15:0]  irq = 0;
     wire        ready;
     
     wire        mem_re;
@@ -32,7 +33,7 @@ module top(
         clk, 1'b0, 1'b0, ready,
         mem_re, mem_we, mem_asize, mem_ready, mem_addr, mem_data,
         prog_re, prog_ready, prog_addr, prog_data,
-        16'h0000
+        irq
     );
     
     always @(posedge clk) begin
@@ -46,6 +47,11 @@ module top(
         $dumpfile("build/sim.vcd");
         $dumpvars(0, top);
         
+        for (i = 0; i < 50; i = i + 1) begin
+            #10 clk <= 1;
+            #10 clk <= 0;
+        end
+        irq <= 16'hffff;
         for (i = 0; i < 50; i = i + 1) begin
             #10 clk <= 1;
             #10 clk <= 0;
