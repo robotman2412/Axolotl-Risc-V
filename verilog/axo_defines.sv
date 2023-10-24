@@ -73,32 +73,32 @@
 
 
 // RISC-V misa CSR values.
-`define RV_MISA_A 1 << 0
-`define RV_MISA_B 1 << 1
-`define RV_MISA_C 1 << 2
-`define RV_MISA_D 1 << 3
-`define RV_MISA_E 1 << 4
-`define RV_MISA_F 1 << 5
-`define RV_MISA_G 1 << 6
-`define RV_MISA_H 1 << 7
-`define RV_MISA_I 1 << 8
-`define RV_MISA_J 1 << 9
-`define RV_MISA_K 1 << 10
-`define RV_MISA_L 1 << 11
-`define RV_MISA_M 1 << 12
-`define RV_MISA_N 1 << 13
-`define RV_MISA_O 1 << 14
-`define RV_MISA_P 1 << 15
-`define RV_MISA_Q 1 << 16
-`define RV_MISA_R 1 << 17
-`define RV_MISA_S 1 << 18
-`define RV_MISA_T 1 << 19
-`define RV_MISA_U 1 << 20
-`define RV_MISA_V 1 << 21
-`define RV_MISA_W 1 << 22
-`define RV_MISA_X 1 << 23
-`define RV_MISA_Y 1 << 24
-`define RV_MISA_Z 1 << 25
+`define RV_MISA_A (1 << 0)
+`define RV_MISA_B (1 << 1)
+`define RV_MISA_C (1 << 2)
+`define RV_MISA_D (1 << 3)
+`define RV_MISA_E (1 << 4)
+`define RV_MISA_F (1 << 5)
+`define RV_MISA_G (1 << 6)
+`define RV_MISA_H (1 << 7)
+`define RV_MISA_I (1 << 8)
+`define RV_MISA_J (1 << 9)
+`define RV_MISA_K (1 << 10)
+`define RV_MISA_L (1 << 11)
+`define RV_MISA_M (1 << 12)
+`define RV_MISA_N (1 << 13)
+`define RV_MISA_O (1 << 14)
+`define RV_MISA_P (1 << 15)
+`define RV_MISA_Q (1 << 16)
+`define RV_MISA_R (1 << 17)
+`define RV_MISA_S (1 << 18)
+`define RV_MISA_T (1 << 19)
+`define RV_MISA_U (1 << 20)
+`define RV_MISA_V (1 << 21)
+`define RV_MISA_W (1 << 22)
+`define RV_MISA_X (1 << 23)
+`define RV_MISA_Y (1 << 24)
+`define RV_MISA_Z (1 << 25)
 
 
 

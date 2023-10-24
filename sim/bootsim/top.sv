@@ -1,17 +1,8 @@
 `timescale 1ns/1ns
 
-module insn_rom(
-    input  wire[31:1] addr,
-    output wire[31:0] data
-);
-    `include "build/rom.sv"
-    assign data[15:0]  = rom[addr >> 1];
-    assign data[31:16] = rom[(addr >> 1) + 1];
-endmodule
-
 module top(
+    input wire clk
 );
-    reg         clk = 0;
     reg [15:0]  irq = 0;
     wire        ready;
     
@@ -27,7 +18,7 @@ module top(
     wire        prog_ready = 1;
     wire[31:1]  prog_addr;
     wire[31:0]  prog_data;
-    insn_rom rom(prog_addr, prog_data);
+    insn_rom irom(prog_addr, prog_data);
     
     axo_rv32im_zicsr#(0) cpu(
         clk, 1'b0, 1'b0, ready,
@@ -36,25 +27,23 @@ module top(
         irq
     );
     
+    reg[15:0] irq_timer = 0;
     always @(posedge clk) begin
         if (mem_addr == 255) begin
             $write("%s", mem_data[7:0]);
         end
-    end
-    
-    integer i;
-    initial begin
-        $dumpfile("build/sim.vcd");
-        $dumpvars(0, top);
-        
-        for (i = 0; i < 50; i = i + 1) begin
-            #10 clk <= 1;
-            #10 clk <= 0;
-        end
-        irq <= 16'hffff;
-        for (i = 0; i < 50; i = i + 1) begin
-            #10 clk <= 1;
-            #10 clk <= 0;
+        irq_timer <= irq_timer + 1;
+        if (irq_timer >= 25) begin
+            irq <= 16'hffff;
         end
     end
+endmodule
+
+module insn_rom(
+    input  wire[31:1] addr,
+    output wire[31:0] data
+);
+    `include "obj_dir/rom.sv"
+    assign data[15:0]  = rom[addr >> 1];
+    assign data[31:16] = rom[(addr >> 1) + 1];
 endmodule

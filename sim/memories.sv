@@ -40,7 +40,7 @@ module unaligned_ram #(
 	integer i;
 	initial begin
 		for (i = 0; i < depth; i = i + 1) begin
-			storage[i] <= 0;
+			storage[i] = 0;
 		end
 	end
 	

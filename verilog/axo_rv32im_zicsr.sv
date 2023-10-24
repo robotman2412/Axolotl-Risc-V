@@ -6,6 +6,7 @@
     https://creativecommons.org/licenses/by-nc-sa/4.0/
 */
 
+`timescale 1ns/1ns
 `include "axo_defines.sv"
 
 /*
@@ -253,6 +254,8 @@ module axo_rv32im_zicsr#(
     logic       ex_branch_taken;
     // EX: Conditional branch was mispredicted.
     logic       ex_branch_error;
+    // EX: Trap caused by CSR access.
+    logic       ex_csr_trap;
     // EX: Dispatch trap.
     logic       ex_trap;
     // EX: Trap cause.
@@ -265,10 +268,10 @@ module axo_rv32im_zicsr#(
     assign ready = !rst_latch;
     
     initial begin
-        rst_latch <= 1;
+        rst_latch = 1;
     end
     
-    always @(*) begin
+    always @(posedge rst, negedge clk) begin
         if (rst) begin
             rst_latch <= 1;
         end else if (rst_detect && !clk) begin
@@ -437,16 +440,16 @@ module axo_rv32im_zicsr#(
     always @(*) begin
         if (axo_insn_opcode(b_if_id_insn) == `RV_OP_SYSTEM && axo_insn_funct3(b_if_id_insn) != `RV_SYSTEM_ECALL) begin
             // CSR number.
-            id_off          <= b_if_id_insn[31:20];
+            id_off          = b_if_id_insn[31:20];
             
         end else if (axo_insn_opcode(b_if_id_insn) == `RV_OP_LOAD) begin
             // Memory load offset.
-            id_off          <= b_if_id_insn[31:20];
+            id_off          = b_if_id_insn[31:20];
             
         end else /*if (axo_insn_opcode(b_if_id_insn) == `RV_OP_STORE)*/ begin
             // Memory store offset.
-            id_off[11:5]    <= b_if_id_insn[31:25];
-            id_off[4:0]     <= b_if_id_insn[11:7];
+            id_off[11:5]    = b_if_id_insn[31:25];
+            id_off[4:0]     = b_if_id_insn[11:7];
         end
     end
     
@@ -488,40 +491,40 @@ module axo_rv32im_zicsr#(
     always @(*) begin
         if (b_if_id_insn[6:2] ==? 5'b110x1) begin
             // PC for JALs.
-            id_lhs <= b_if_id_pc;
+            id_lhs = b_if_id_pc;
             
         end else if (axo_insn_opcode(b_if_id_insn) == `RV_OP_AUIPC) begin
             // PC for AUIPC.
-            id_lhs <= b_if_id_pc;
+            id_lhs = b_if_id_pc;
             
         end else if (axo_insn_opcode(b_if_id_insn) == `RV_OP_LUI) begin
             // Zero for LUI.
-            id_lhs <= 0;
+            id_lhs = 0;
             
         end else begin
             // Register value.
-            id_lhs <= fw_lhs ? ex_result : id_rs1_val;
+            id_lhs = fw_lhs ? ex_result : id_rs1_val;
         end
     end
     
     always @(*) begin
         if (b_if_id_insn[6:2] ==? 5'b110x1) begin
             // Instruction length for JALs.
-            id_rhs  <= b_if_id_len ? 4 : 2;
+            id_rhs          = b_if_id_len ? 4 : 2;
             
         end else if (b_if_id_insn[6:2] ==? 5'b0x101) begin
             // IMM for AUIPC / LUI.
-            id_rhs[11:0]    <= 0;
-            id_rhs[31:12]   <= b_if_id_insn[31:12];
+            id_rhs[11:0]    = 0;
+            id_rhs[31:12]   = b_if_id_insn[31:12];
             
         end else if (axo_insn_is_alu_imm(b_if_id_insn)) begin
             // IMM for ALU ops.
-            id_rhs[11:0]    <= b_if_id_insn[31:20];
-            id_rhs[31:12]   <= b_if_id_insn[31] ? 20'hfffff : 20'h00000;
+            id_rhs[11:0]    = b_if_id_insn[31:20];
+            id_rhs[31:12]   = b_if_id_insn[31] ? 20'hfffff : 20'h00000;
             
         end else begin
             // Register value.
-            id_rhs  <= fw_rhs ? ex_result : id_rs2_val;
+            id_rhs          = fw_rhs ? ex_result : id_rs2_val;
         end
     end
     
@@ -604,7 +607,7 @@ module axo_rv32im_zicsr#(
         ex_csr_res, b_id_ex_insn[14] ? axo_insn_rs1(b_id_ex_insn) : b_id_ex_lhs, axo_insn_funct3(b_id_ex_insn), ex_csr_din
     );
     
-    axo_rv32im_zicsr_csrs csrs(
+    axo_rv32im_zicsr_csrs#(mhartid) csrs(
         clk, rst_latch,
         b_id_ex_off, ex_csr_din, ex_csr_res, ex_csr_we, ex_csr_trap,
         tr_irq, b_id_ex_pc, tr_trap_cause, tr_trap, tr_is_interrupt,
@@ -624,8 +627,8 @@ module axo_rv32im_zicsr#(
                     ex_result[15:0]  = mem_data[15:0];
                     ex_result[31:16] = mem_data[15] && b_id_ex_insn[14] ? 16'hffff : 16'h0000;
                 end
-                2:  ex_result <= mem_data;
-                3:  ex_result <= 'bx;
+                2:  ex_result = mem_data;
+                3:  ex_result = 'bx;
             endcase
         end else if (axo_insn_opcode(b_id_ex_insn) == `RV_OP_SYSTEM && axo_insn_funct3(b_id_ex_insn) != 0) begin
             // CSR access instruction.
@@ -792,6 +795,7 @@ module axo_rv32im_zicsr_csrs#(
         end else if (we) begin
             // CSR write logic.
             case (addr)
+                default:            /* No action required. */;
                 `RV_CSR_MSTATUS:    begin csr_mstatus_mpie <= din[7]; csr_mstatus_mie <= din[3]; end
                 `RV_CSR_MIE:        begin csr_mie <= din; end
                 `RV_CSR_MTVEC:      begin csr_mtvec <= din; end

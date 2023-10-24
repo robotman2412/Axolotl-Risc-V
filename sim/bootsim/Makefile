@@ -1,4 +1,6 @@
 
+MAKEFLAGS += --silent --no-print-directory
+
 .PHONY: all build clean run wave
 
 HDL = 	top.sv \
@@ -12,24 +14,29 @@ SRC =	main.S
 
 all: wave
 
-build/rom.sv: $(SRC)
-	@mkdir -p build
-	@riscv32-unknown-elf-gcc -g -ffreestanding -nostdlib -nodefaultlibs -march=rv32im_zicsr -mabi=ilp32 -Tlinker.ld -o build/rom.elf $^
-	@riscv32-unknown-elf-objcopy -O binary build/rom.elf build/rom.bin
-	@../bin2rom.py build/rom.bin build/rom.sv rom 16
-	@riscv32-unknown-elf-objdump -t build/rom.elf
+obj_dir/rom.sv: $(SRC)
+	mkdir -p obj_dir
+	riscv32-unknown-elf-gcc -g \
+		-ffreestanding -nostdlib -nodefaultlibs \
+		-march=rv32im_zicsr -mabi=ilp32 \
+		-Tlinker.ld -o obj_dir/rom.elf $^
+	riscv32-unknown-elf-objcopy -O binary obj_dir/rom.elf obj_dir/rom.bin
+	../bin2rom.py obj_dir/rom.bin obj_dir/rom.sv rom 16
+	riscv32-unknown-elf-objdump -t obj_dir/rom.elf
 
-build/sim.vvp: $(HDL) build/rom.sv $(shell find ../../verilog -type f)
-	@mkdir -p build
-	@iverilog -g2012 -I. -I../../verilog $(HDL) -o build/sim.vvp
-
-build: build/sim.vvp
+build: $(HDL) obj_dir/rom.sv $(shell find ../../verilog -type f) bench.cpp
+	mkdir -p build
+	verilator -Wall -Wno-fatal -Wno-DECLFILENAME -Wno-VARHIDDEN -Wno-WIDTH -Wno-UNUSED \
+		--trace-fst -sv --cc --exe --build \
+		-I.. -I../../verilog \
+		--top-module top \
+		-j $(shell nproc) bench.cpp $(HDL) -o sim
 
 clean:
-	rm -rf build
+	rm -rf obj_dir
 
 run: build
-	vvp build/sim.vvp -fst
+	./obj_dir/sim
 
 wave: run
-	gtkwave build/sim.vcd
+	gtkwave obj_dir/sim.fst

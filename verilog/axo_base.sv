@@ -6,6 +6,7 @@
     https://creativecommons.org/licenses/by-nc-sa/4.0/
 */
 
+`timescale 1ns/1ns
 `include "axo_defines.sv"
 
 // XLEN-bit dual-read, single-write register file.
@@ -63,12 +64,12 @@ module axo_regfile#(
         if (rst) begin
             // Reset regfile to all 0.
             for (i = 1; i < 32; i=i+1) begin
-                data[i] = 0;
+                data[i] <= 0;
             end
         end else if (clk) begin
             // Except for `x0`, write handler.
             if (rd != 0 && we) begin
-                data[rd] = din;
+                data[rd] <= din;
                 $display("x%0d = %08h", rd, din);
             end
         end
@@ -91,6 +92,8 @@ module axo_branch_target(
     // Only valid for control transfer instructions.
     output logic[31:1] addr
 );
+    `include "axo_functions.sv"
+    
     wire [31:0] branch_base = insn[3:2] == 2'b01 ? rs1_val : pc_val;
     logic[31:0] branch_off;
     wire [31:1] branch_addr = branch_base + branch_off;
@@ -290,7 +293,7 @@ module axo_insn_validator#(
     always @(*) begin
         if (axo_insn_funct3(insn) == 3'b000) begin
             // Privileged instructions.
-            casex (insn[31:20])
+            casez (insn[31:20])
                 default:            begin valid_system = 0;          legal_system = 1; end
                 12'b0000000_0000?:  begin valid_system = 1;          legal_system = 1; end
                 12'b0001000_00010:  begin valid_system = has_s_mode; legal_system = privilege[0]; end

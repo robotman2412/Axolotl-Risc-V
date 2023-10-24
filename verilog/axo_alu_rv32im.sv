@@ -6,6 +6,7 @@
     https://creativecommons.org/licenses/by-nc-sa/4.0/
 */
 
+`timescale 1ns/1ns
 `include "axo_defines.sv"
 
 module axo32_alu_rv32im(
@@ -82,20 +83,20 @@ module axo32_alu_rv32im(
     always @(*) begin
         if (axo_insn_opcode(insn) == `RV_OP_BRANCH) begin
             // Branch comparison.
-            add_xor_msb <= !insn[13];
-            add_xor     <= 1;
+            add_xor_msb = !insn[13];
+            add_xor     = 1;
         end else if (axo_insn_is_alu(insn) && axo_insn_funct3(insn) != 0) begin
             // Set comparison.
-            add_xor_msb <= !insn[12];
-            add_xor     <= 1;
+            add_xor_msb = !insn[12];
+            add_xor     = 1;
         end else if (axo_insn_opcode(insn) == `RV_OP_OP && insn[30]) begin
             // Subtract register.
-            add_xor_msb <= 0;
-            add_xor     <= 1;
+            add_xor_msb = 0;
+            add_xor     = 1;
         end else begin
             // Normal addition.
-            add_xor_msb <= 0;
-            add_xor     <= 0;
+            add_xor_msb = 0;
+            add_xor     = 0;
         end
     end
     
