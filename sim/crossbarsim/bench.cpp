@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i <= 100 && !contextp->gotFinish(); i++) {
         top->clk ^= 1;
         top->eval();
-        trace->dump(i*10);
+        trace->dump(i);
     }
     // while (!contextp->gotFinish()) { top->eval(); }
     

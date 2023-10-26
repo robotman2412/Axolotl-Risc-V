@@ -62,22 +62,28 @@ module axo_rv32im_zicsr#(
     output logic       mem_we,
     // Memory access size in 2^n bytes.
     output logic[1:0]  mem_asize,
-    // Memory ready: the CPU will stall on memory OPs while 0.
-    input  logic       mem_ready,
-    
     // Memory address bus.
     output logic[31:0] mem_addr,
-    // Memory data bus.
-    inout  wire [31:0] mem_data,
+    // Memory write data.
+    output logic[31:0] mem_wdata,
+    
+    // Memory ready: the CPU will stall on memory OPs while 0.
+    input  logic       mem_ready,
+    // Memory access error.
+    input  logic       mem_error,
+    // Memory read data.
+    input  logic[31:0] mem_rdata,
     
     
     // Read from program.
     output logic       prog_re,
-    // Program ready: the CPU will stall loading instructions while 0.
-    input  logic       prog_ready,
-    
     // Program address bus.
     output logic[31:1] prog_addr,
+    
+    // Program ready: the CPU will stall loading instructions while 0.
+    input  logic       prog_ready,
+    // Program access error.
+    input  logic       prog_error,
     // Program data bus.
     input  logic[31:0] prog_data,
     
@@ -124,6 +130,10 @@ module axo_rv32im_zicsr#(
     logic       fw_stall_id;
     // Stall EX stage.
     logic       fw_stall_ex;
+    // IF stage stall is due to memory.
+    logic       fw_stall_if_mem;
+    // EX stage stall is due to memory.
+    logic       fw_stall_ex_mem;
     // Forward result to LHS.
     logic       fw_lhs;
     // Forward result to RHS.
@@ -326,16 +336,31 @@ module axo_rv32im_zicsr#(
     assign fw_branch         = !fw_branch_error && id_is_branch;
     assign fw_branch_predict = !fw_branch_error && id_branch_predict;
     assign fw_branch_error   = ex_branch_error;
-    assign fw_stall_ex       = 0;
+    assign fw_stall_ex       = (mem_re || mem_we) && !mem_ready;
+    assign fw_stall_ex_mem   = fw_stall_ex;
     always @(*) begin
-        if (b_if_id_valid && axo_insn_is_xret(b_if_id_insn) && ex_valid && axo_insn_is_csr(b_id_ex_insn)) begin
+        if (!prog_ready) begin
+            fw_stall_id = 1;
+        end else if (b_if_id_valid && axo_insn_is_xret(b_if_id_insn) && ex_valid && axo_insn_is_csr(b_id_ex_insn)) begin
             // MRET is vulnerable to CSR writes, stall it.
+            fw_stall_id = 1;
+        end else if (fw_stall_ex) begin
             fw_stall_id = 1;
         end else begin
             fw_stall_id = 0;
         end
     end
-    assign fw_stall_if = fw_stall_id;
+    always @(*) begin
+        fw_stall_if_mem = 0;
+        if (!prog_ready) begin
+            fw_stall_if_mem = 1;
+            fw_stall_if = 1;
+        end else if (fw_stall_id) begin
+            fw_stall_if = 1;
+        end else begin
+            fw_stall_if = 0;
+        end
+    end
     
     /* ==== PIPELINE STAGE 1/3: FETCH ==== */
     // Instruction length decoder.
@@ -345,7 +370,7 @@ module axo_rv32im_zicsr#(
     
     // Instruction bus logic.
     assign prog_addr    = if_pc;
-    assign prog_re      = !fw_stall_if;
+    assign prog_re      = fw_stall_if_mem || !fw_stall_if;
     
     always @(posedge clk) begin
         if (rst_latch) begin
@@ -432,7 +457,7 @@ module axo_rv32im_zicsr#(
     axo_regfile regs(
         clk, rst,
         ex_rd, axo_insn_rs1(b_if_id_insn), axo_insn_rs2(b_if_id_insn),
-        !fw_stall_id && ex_valid,
+        !fw_stall_ex && ex_valid,
         ex_result, id_rs1_val, id_rs2_val
     );
     
@@ -572,7 +597,7 @@ module axo_rv32im_zicsr#(
     
     
     /* ==== PIPELINE STAGE 3/3: EXECUTE ==== */
-    assign ex_valid = b_id_ex_valid && !fw_stall_ex && !tr_trap;
+    assign ex_valid = b_id_ex_valid && !tr_trap;
     assign ex_rd    = b_id_ex_rd;
     
     // ALU logic.
@@ -590,7 +615,7 @@ module axo_rv32im_zicsr#(
     assign ex_is_mem = b_id_ex_valid && (axo_insn_opcode(b_id_ex_insn) == `RV_OP_STORE || axo_insn_opcode(b_id_ex_insn) == `RV_OP_LOAD);
     assign mem_we    = ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_STORE;
     assign mem_re    = ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_LOAD;
-    assign mem_data  = mem_we ? b_id_ex_rhs : 'bz;
+    assign mem_wdata = b_id_ex_rhs;
     assign mem_asize = b_id_ex_insn[13:12];
     assign mem_addr  = ex_addr;
     
@@ -620,14 +645,14 @@ module axo_rv32im_zicsr#(
             // Memory access instruction.
             case (mem_asize)
                 0:  begin
-                    ex_result[7:0]  = mem_data[7:0];
-                    ex_result[31:8] = mem_data[7] && b_id_ex_insn[14] ? 24'hffffff : 24'h000000;
+                    ex_result[7:0]  = mem_rdata[7:0];
+                    ex_result[31:8] = mem_rdata[7] && b_id_ex_insn[14] ? 24'hffffff : 24'h000000;
                 end
                 1:  begin
-                    ex_result[15:0]  = mem_data[15:0];
-                    ex_result[31:16] = mem_data[15] && b_id_ex_insn[14] ? 16'hffff : 16'h0000;
+                    ex_result[15:0]  = mem_rdata[15:0];
+                    ex_result[31:16] = mem_rdata[15] && b_id_ex_insn[14] ? 16'hffff : 16'h0000;
                 end
-                2:  ex_result = mem_data;
+                2:  ex_result = mem_rdata;
                 3:  ex_result = 'bx;
             endcase
         end else if (axo_insn_opcode(b_id_ex_insn) == `RV_OP_SYSTEM && axo_insn_funct3(b_id_ex_insn) != 0) begin

@@ -120,6 +120,19 @@
 
 
 
+// Memory access misaligned.
+`define AXO_MEM_EALIGN      4'b1000
+// Selected memory has internal failure.
+`define AXO_MEM_FAILED      4'b0100
+// Selected memory is not writeable.
+`define AXO_MEM_READONLY    4'b0001
+// Selected memory is not readable.
+`define AXO_MEM_WRITEONLY   4'b0010
+// Selected memory does not exist.
+`define AXO_MEM_EMISSING    4'b0011
+
+
+
 // Defined RISC-V CSR addresses.
 `define RV_CSR_FFLAGS       12'h001
 `define RV_CSR_FRM          12'h002
