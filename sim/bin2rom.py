@@ -27,7 +27,7 @@ for i in range(len(raw)):
     data[i//data_bytes] |= raw[i] << (i % data_bytes * 8)
 
 
-
+outfd.write("    localparam {}_len = {};\n".format(rom_id, depth))
 outfd.write("    wire[{}:0] {}[{}:0];\n".format(data_bits-1, rom_id, depth-1))
 for i in range(len(data)):
     outfd.write("    assign {}[{}] = {}'h{:x};\n".format(rom_id, i, data_bits, data[i]))

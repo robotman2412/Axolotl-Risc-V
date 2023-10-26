@@ -1,13 +1,18 @@
 
     .global _start
 _start:
-    la a0, myconst
-    lw a1, myconst
+    la t0, isr
+    csrw mtvec, t0
+    csrsi mtvec, 8
+    
+    li a0, 0xcafebabe
+    lw s0, 0(a0)
+
 halt:
     j halt
-    nop
-    
-myconst:
-    .word 0xdeadbeef
+
+isr:
+    li s0, 0xdeadbeef
+    j halt
     
     nop

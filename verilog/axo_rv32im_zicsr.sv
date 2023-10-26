@@ -15,7 +15,7 @@
     Pipeline: fetch, decode, execute
     IPC: 0.33 min, 0.80 avg, 1.00 max
     
-    IALIGN: 16
+    IALIGN: 32
     Interrupts: 16 external, 1 internal
     Privilege modes: M-mode only
     
@@ -56,36 +56,10 @@ module axo_rv32im_zicsr#(
     output logic ready,
     
     
-    // Read from memory
-    output logic       mem_re,
-    // Write to memory.
-    output logic       mem_we,
-    // Memory access size in 2^n bytes.
-    output logic[1:0]  mem_asize,
-    // Memory address bus.
-    output logic[31:0] mem_addr,
-    // Memory write data.
-    output logic[31:0] mem_wdata,
-    
-    // Memory ready: the CPU will stall on memory OPs while 0.
-    input  logic       mem_ready,
-    // Memory access error.
-    input  logic       mem_error,
-    // Memory read data.
-    input  logic[31:0] mem_rdata,
-    
-    
-    // Read from program.
-    output logic       prog_re,
-    // Program address bus.
-    output logic[31:1] prog_addr,
-    
-    // Program ready: the CPU will stall loading instructions while 0.
-    input  logic       prog_ready,
-    // Program access error.
-    input  logic       prog_error,
-    // Program data bus.
-    input  logic[31:0] prog_data,
+    // Memory access port.
+    axo_mem_bus.CPU mem,
+    // Program memory access port.
+    axo_mem_bus.CPU prog,
     
     
     // External interrupts 16 to 31.
@@ -130,9 +104,11 @@ module axo_rv32im_zicsr#(
     logic       fw_stall_id;
     // Stall EX stage.
     logic       fw_stall_ex;
-    // IF stage stall is due to memory.
+    // Stall IF stage due to memory.
     logic       fw_stall_if_mem;
-    // EX stage stall is due to memory.
+    // Stall ID stage due to memory.
+    logic       fw_stall_id_mem;
+    // Stall EX stage due to memory.
     logic       fw_stall_ex_mem;
     // Forward result to LHS.
     logic       fw_lhs;
@@ -336,48 +312,42 @@ module axo_rv32im_zicsr#(
     assign fw_branch         = !fw_branch_error && id_is_branch;
     assign fw_branch_predict = !fw_branch_error && id_branch_predict;
     assign fw_branch_error   = ex_branch_error;
-    assign fw_stall_ex       = (mem_re || mem_we) && !mem_ready;
-    assign fw_stall_ex_mem   = fw_stall_ex;
+    assign fw_stall_ex       = 0;
     always @(*) begin
-        if (!prog_ready) begin
-            fw_stall_id = 1;
-        end else if (b_if_id_valid && axo_insn_is_xret(b_if_id_insn) && ex_valid && axo_insn_is_csr(b_id_ex_insn)) begin
+        if (b_if_id_valid && axo_insn_is_xret(b_if_id_insn) && b_if_id_valid && !b_if_id_trap && axo_insn_is_csr(b_id_ex_insn)) begin
             // MRET is vulnerable to CSR writes, stall it.
             fw_stall_id = 1;
-        end else if (fw_stall_ex) begin
+        end else if (fw_stall_ex || fw_stall_ex_mem) begin
             fw_stall_id = 1;
         end else begin
             fw_stall_id = 0;
         end
     end
-    always @(*) begin
-        fw_stall_if_mem = 0;
-        if (!prog_ready) begin
-            fw_stall_if_mem = 1;
-            fw_stall_if = 1;
-        end else if (fw_stall_id) begin
-            fw_stall_if = 1;
-        end else begin
-            fw_stall_if = 0;
-        end
-    end
+    assign fw_stall_if       = fw_stall_id;
+    
+    assign fw_stall_ex_mem   = (mem.re || mem.we) && !mem.ready;
+    assign fw_stall_id_mem   = 0;
+    assign fw_stall_if_mem   = (prog.re && !prog.ready);
     
     /* ==== PIPELINE STAGE 1/3: FETCH ==== */
     // Instruction length decoder.
-    assign if_len       = axo_insn_length(prog_data);
+    assign if_len       = 1;
     // Next instruction address.
     assign if_next_pc   = if_pc + (if_len ? 4 : 2);
     
     // Instruction bus logic.
-    assign prog_addr    = if_pc;
-    assign prog_re      = fw_stall_if_mem || !fw_stall_if;
+    assign prog.re      = !fw_stall_if;
+    assign prog.we      = 0;
+    assign prog.asize   = 2;
+    assign prog.addr    = if_pc;
+    assign prog.wdata   = 0;
     
     always @(posedge clk) begin
         if (rst_latch) begin
             // Reset.
             if_pc     <= entrypoint;
             if_alt_pc <= 0;
-        end else if (!fw_stall_if) begin
+        end else if (!fw_stall_if && !fw_stall_if_mem) begin
             // Next PC.
             if (tr_trap) begin
                 if_pc <= tr_vec;
@@ -398,8 +368,8 @@ module axo_rv32im_zicsr#(
     end
     
     // Trap logic.
-    assign if_trap  = 0;
-    assign if_cause = 0;
+    assign if_trap  = if_pc[1] || (prog.ready && prog.error);
+    assign if_cause = if_pc[1] ? `RV_ECAUSE_IALIGN : `AXO_ECAUSE_IMFAULT;
     
     
     
@@ -413,17 +383,17 @@ module axo_rv32im_zicsr#(
             b_if_id_insn    <= 0;
             b_if_id_trap    <= 0;
             b_if_id_cause   <= 0;
-        end else if (!fw_stall_if) begin
+        end else if (!fw_stall_if && !fw_stall_if_mem) begin
             // Discard loaded insn on branch error.
             b_if_id_valid   <= !(fw_branch && fw_branch_predict) && !fw_branch_error && !tr_trap;
             // Latch loaded instruction data.
             b_if_id_len     <= if_len;
             b_if_id_pc      <= if_pc;
-            b_if_id_insn    <= prog_data;
+            b_if_id_insn    <= prog.rdata;
             // Trap information.
             b_if_id_trap    <= if_trap;
             b_if_id_cause   <= if_cause;
-        end else if (!fw_stall_id) begin
+        end else if (!fw_stall_id && !fw_stall_id_mem) begin
             // Stalled; results are invalid.
             b_if_id_valid   <= 0;
         end
@@ -457,7 +427,7 @@ module axo_rv32im_zicsr#(
     axo_regfile regs(
         clk, rst,
         ex_rd, axo_insn_rs1(b_if_id_insn), axo_insn_rs2(b_if_id_insn),
-        !fw_stall_ex && ex_valid,
+        !fw_stall_ex && !fw_stall_ex_mem && ex_valid,
         ex_result, id_rs1_val, id_rs2_val
     );
     
@@ -573,7 +543,7 @@ module axo_rv32im_zicsr#(
             b_id_ex_branch_predict  <= 0;
             b_id_ex_trap            <= 0;
             b_id_ex_cause           <= 0;
-        end else if (!fw_stall_id) begin
+        end else if (!fw_stall_id && !fw_stall_id_mem) begin
             // Discard decoded insn on branch error or if loaded insn is bad.
             b_id_ex_valid           <= b_if_id_valid && !fw_branch_error && !tr_trap;
             // Latch decoded instruction data.
@@ -588,7 +558,7 @@ module axo_rv32im_zicsr#(
             // Trap information.
             b_id_ex_trap            <= b_if_id_trap || id_trap;
             b_id_ex_cause           <= b_if_id_trap ? b_if_id_cause : id_cause;
-        end else if (!fw_stall_ex) begin
+        end else if (!fw_stall_ex && !fw_stall_ex_mem) begin
             // Stalled; results are invalid.
             b_id_ex_valid           <= 0;
         end
@@ -613,11 +583,11 @@ module axo_rv32im_zicsr#(
     
     // Memory access logic.
     assign ex_is_mem = b_id_ex_valid && (axo_insn_opcode(b_id_ex_insn) == `RV_OP_STORE || axo_insn_opcode(b_id_ex_insn) == `RV_OP_LOAD);
-    assign mem_we    = ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_STORE;
-    assign mem_re    = ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_LOAD;
-    assign mem_wdata = b_id_ex_rhs;
-    assign mem_asize = b_id_ex_insn[13:12];
-    assign mem_addr  = ex_addr;
+    assign mem.we    = b_id_ex_valid && !b_id_ex_trap && axo_insn_opcode(b_id_ex_insn) == `RV_OP_STORE;
+    assign mem.re    = b_id_ex_valid && !b_id_ex_trap && axo_insn_opcode(b_id_ex_insn) == `RV_OP_LOAD;
+    assign mem.wdata = b_id_ex_rhs;
+    assign mem.asize = b_id_ex_insn[13:12];
+    assign mem.addr  = ex_addr;
     
     // CSR access logic.
     always @(*) begin
@@ -643,16 +613,16 @@ module axo_rv32im_zicsr#(
     always @(*) begin
         if (ex_is_mem) begin
             // Memory access instruction.
-            case (mem_asize)
+            case (mem.asize)
                 0:  begin
-                    ex_result[7:0]  = mem_rdata[7:0];
-                    ex_result[31:8] = mem_rdata[7] && b_id_ex_insn[14] ? 24'hffffff : 24'h000000;
+                    ex_result[7:0]  = mem.rdata[7:0];
+                    ex_result[31:8] = mem.rdata[7] && b_id_ex_insn[14] ? 24'hffffff : 24'h000000;
                 end
                 1:  begin
-                    ex_result[15:0]  = mem_rdata[15:0];
-                    ex_result[31:16] = mem_rdata[15] && b_id_ex_insn[14] ? 16'hffff : 16'h0000;
+                    ex_result[15:0]  = mem.rdata[15:0];
+                    ex_result[31:16] = mem.rdata[15] && b_id_ex_insn[14] ? 16'hffff : 16'h0000;
                 end
-                2:  ex_result = mem_rdata;
+                2:  ex_result = mem.rdata;
                 3:  ex_result = 'bx;
             endcase
         end else if (axo_insn_opcode(b_id_ex_insn) == `RV_OP_SYSTEM && axo_insn_funct3(b_id_ex_insn) != 0) begin
@@ -665,8 +635,32 @@ module axo_rv32im_zicsr#(
     end
     
     // Trap logic.
-    assign ex_trap  = b_id_ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_SYSTEM && axo_insn_funct3(b_id_ex_insn) != 0 && ex_csr_trap;
-    assign ex_cause = `RV_ECAUSE_IILLEGAL;
+    always @(*) begin
+        if (b_id_ex_valid) begin
+            if (axo_insn_opcode(b_id_ex_insn) == `RV_OP_SYSTEM && axo_insn_funct3(b_id_ex_insn) != 0 && ex_csr_trap) begin
+                // CSR trap.
+                ex_trap  = 1;
+                ex_cause = `RV_ECAUSE_IILLEGAL;
+                
+            end else if (axo_insn_opcode(b_id_ex_insn) == `RV_OP_STORE && mem.error) begin
+                // Memory store access fault.
+                ex_trap  = 1;
+                ex_cause = mem.rdata[3:0] == `AXO_MEM_EALIGN ? `RV_ECAUSE_SALIGN : `AXO_ECAUSE_LMFAULT;
+                
+            end else if (axo_insn_opcode(b_id_ex_insn) == `RV_OP_LOAD && mem.error) begin
+                // Memory load access fault.
+                ex_trap  = 1;
+                ex_cause = mem.rdata[3:0] == `AXO_MEM_EALIGN ? `RV_ECAUSE_LALIGN : `AXO_ECAUSE_SMFAULT;
+                
+            end else begin
+                ex_trap  = 0;
+                ex_cause = 'bx;
+            end
+        end else begin
+            ex_trap  = 0;
+            ex_cause = 'bx;
+        end
+    end
 endmodule
 
 

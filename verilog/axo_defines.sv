@@ -102,28 +102,51 @@
 
 
 
-// RISC-V trap causes.
-`define RV_ECAUSE_ILIGN     5'h00
+/* RISC-V trap causes. */
+// Instruction access misaligned.
+`define RV_ECAUSE_IALIGN    5'h00
+// Instruction access fault.
 `define RV_ECAUSE_IACCESS   5'h01
+// Illegal instruction.
 `define RV_ECAUSE_IILLEGAL  5'h02
+// Trace / breakpoint trap.
 `define RV_ECAUSE_EBREAK    5'h03
+// Load access misaligned.
 `define RV_ECAUSE_LALIGN    5'h04
+// Load access fault.
 `define RV_ECAUSE_LACCESS   5'h05
+// Store / AMO access misaligned.
 `define RV_ECAUSE_SALIGN    5'h06
+// Store / AMO access fault.
 `define RV_ECAUSE_SACCESS   5'h07
+// ECALL from U-mode.
 `define RV_ECAUSE_U_ECALL   5'h08
+// ECALL from S-mode.
 `define RV_ECAUSE_S_ECALL   5'h09
+// ECALL from M-mode.
 `define RV_ECAUSE_M_ECALL   5'h0B
+// Instruction page fault.
 `define RV_ECAUSE_IPAGE     5'h0C
+// Load page fault.
 `define RV_ECAUSE_LPAGE     5'h0D
+// Store / AMO page fault.
 `define RV_ECAUSE_SPAGE     5'h0F
 
+/* Axolotl-RISC-V custom trap causes */
+// Axo instruction bus error.
+`define AXO_ECAUSE_IMFAULT  5'h18
+// Axo memory bus error on load.
+`define AXO_ECAUSE_LMFAULT  5'h19
+// Axo memory bus error on store / AMO.
+`define AXO_ECAUSE_SMFAULT  5'h1A
 
 
+// Selected memory has internal failure.
+`define AXO_MEM_FAILED      4'b0000
+// Selected access size is unsupported.
+`define AXO_MEM_EASIZE      4'b0100
 // Memory access misaligned.
 `define AXO_MEM_EALIGN      4'b1000
-// Selected memory has internal failure.
-`define AXO_MEM_FAILED      4'b0100
 // Selected memory is not writeable.
 `define AXO_MEM_READONLY    4'b0001
 // Selected memory is not readable.
