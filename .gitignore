@@ -1,10 +1,10 @@
 *__pycache__
 riscv-spec-*.pdf
-zedboard_dev/*.cache
-zedboard_dev/*.sim
-zedboard_dev/*.runs
-zedboard_dev/*.ip_user_files
-zedboard_dev/*.gen
+*_dev/*.cache
+*_dev/*.sim
+*_dev/*.runs
+*_dev/*.ip_user_files
+*_dev/*.gen
 sim/*/build
 sim/*/obj_dir
 .vscode

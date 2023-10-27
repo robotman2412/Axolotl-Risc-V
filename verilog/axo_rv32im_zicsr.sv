@@ -6,7 +6,7 @@
     https://creativecommons.org/licenses/by-nc-sa/4.0/
 */
 
-`timescale 1ns/1ns
+`timescale 1ns/1ps
 `include "axo_defines.sv"
 
 /*
@@ -46,6 +46,7 @@ module axo_rv32im_zicsr#(
     parameter mhartid      = 32'h0000_0000
 )(
     // Clock source.
+    (* mark_debug = "true" *)
     input  logic clk,
     // Clock source for mtime.
     input  logic rtc_clk,
@@ -85,6 +86,7 @@ module axo_rv32im_zicsr#(
     // Interrupts pending.
     wire [31:0] tr_irq = irq << 16;
     // Interrupt or trap raised.
+    (* mark_debug = "true" *)
     logic       tr_trap;
     // Interrupt or trap cause.
     logic[4:0]  tr_trap_cause;
@@ -115,10 +117,13 @@ module axo_rv32im_zicsr#(
     // Forward result to RHS.
     logic       fw_rhs;
     // Processing a jump or conditional branch.
+    (* mark_debug = "true" *)
     logic       fw_branch;
     // Branch prediction result.
+    (* mark_debug = "true" *)
     logic       fw_branch_predict;
     // Branch misprediction detected.
+    (* mark_debug = "true" *)
     logic       fw_branch_error;
     
     /* Pipeline stage 1/3: fetch */
@@ -127,6 +132,7 @@ module axo_rv32im_zicsr#(
     // IF: Next instruction address.
     logic[31:1] if_next_pc;
     // IF: Program counter.
+    (* mark_debug = "true" *)
     reg  [31:1] if_pc;
     // IF: Unpredicted path.
     reg  [31:1] if_alt_pc;
@@ -257,10 +263,10 @@ module axo_rv32im_zicsr#(
         rst_latch = 1;
     end
     
-    always @(posedge rst, negedge clk) begin
+    always @(negedge clk) begin
         if (rst) begin
             rst_latch <= 1;
-        end else if (rst_detect && !clk) begin
+        end else if (rst_detect) begin
             rst_latch <= 0;
         end
     end

@@ -1,0 +1,64 @@
+
+/*
+    This work ("Axolotl³²") is licensed under a Creative Commons
+    Attribution-NonCommercial-ShareAlike 4.0 International License:
+    
+    https://creativecommons.org/licenses/by-nc-sa/4.0/
+*/
+
+`timescale 1ns/1ps
+
+module top(
+    // Global 12MHz clock input.
+    input  wire         clk,
+    
+    // USB-UART send.
+    output wire         uart_send,
+    // USB-UART receive.
+    input  wire         uart_recv,
+    
+    // Buttons on top of the board.
+    input  wire [1:0]   btn,
+    
+    // RGB LED on top of the board.
+    output logic        led_r,
+    output logic        led_g,
+    output logic        led_b
+);
+    assign rst = btn[1];
+    
+    // Simple clock generation logic.
+    reg[9:0] clk_div;
+    always @(posedge clk) begin
+        clk_div <= clk_div + 1;
+    end
+    wire subclk_fast = clk_div[7];
+    wire subclk_slow = clk_div[9];
+    
+    // Memory.
+    axo_mem_bus mem_bus();
+    blockram_32k bram(subclk_fast, mem_bus);
+    
+    axo_mem_bus cpu_buses[2]();
+    
+    axo_mem_demux mux(subclk_slow, rst, cpu_buses, mem_bus);
+    
+    // CPU core.
+    wire ready;
+    axo_rv32im_zicsr#(0) cpu(subclk_slow, rst, 0, ready, cpu_buses[0], cpu_buses[1], 16'h0000);
+    
+    // Blinkenlights.
+    assign led_b = ready;
+    initial begin
+        led_r = 1;
+    end
+    always @(posedge cpu_buses[1].we) begin
+        led_r <= !led_r;
+    end
+    
+    reg[31:0] p_addr = 0;
+    always @(posedge clk) begin
+        p_addr <= mem_bus.addr;
+    end
+    assign led_g = !(mem_bus.addr == 16 || mem_bus.addr == 20) ^ btn[0];
+endmodule

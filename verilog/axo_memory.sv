@@ -6,7 +6,7 @@
     https://creativecommons.org/licenses/by-nc-sa/4.0/
 */
 
-`timescale 1ns/1ns
+`timescale 1ns/1ps
 `include "axo_defines.sv"
 
 // Standard Axo memory bus.
@@ -26,7 +26,7 @@ interface axo_mem_bus#(
     // CPU -> MEM: Memory address.
     logic[alen-1:0] addr;
     // CPU -> MEM: Write data.
-    wire [dlen-1:0] wdata;
+    logic[dlen-1:0] wdata;
     
     // MEM -> CPU: Ready to transfer.
     logic           ready;
@@ -47,12 +47,12 @@ endinterface
 // The MEM occupies a NAPOT range at least 4 bytes large in the address space.
 module axo_mem_demux#(
     // Data width, powers of 2 >= 32.
-    parameter integer   dlen,
+    parameter integer   dlen = 32,
     // Address width.
-    parameter integer   alen,
+    parameter integer   alen = 32,
     
     // Number of CPU to demultiplexer ports, at least 2.
-    parameter integer   cpus
+    parameter integer   cpus = 2
 )(
     // Shared clock.
     input logic clk,
@@ -79,25 +79,45 @@ module axo_mem_demux#(
     wire            any_occupied = occupied != 0;
     
     // Arbitration logic.
-    /* verilator lint_off UNOPTFLAT */
-    logic[cpus-1:0] arbiter;
-    assign arbiter[0] = last_cpu[cpus-1]
+    logic[cpus*2-1:0] arbiter;
+    assign arbiter[0] = 0;
+    assign arbiter[cpus] = last_cpu[cpus-1]
             || (arbiter[cpus-1] && !cpu_ports[cpus-1].re && !cpu_ports[cpus-1].we);
     generate
         for (i = 1; i < cpus; i = i + 1) begin
             assign arbiter[i] = last_cpu[i-1]
                     || (arbiter[i-1] && !cpu_ports[i-1].re && !cpu_ports[i-1].we);
+            assign arbiter[i+cpus] = last_cpu[i-1]
+                    || (arbiter[i-1] && !cpu_ports[i-1].re && !cpu_ports[i-1].we);
         end
     endgenerate
-    /* verilator lint_off UNOPTFLAT */
+    
+    // /* verilator lint_off UNOPTFLAT */
+    // logic[cpus-1:0] arbiter;
+    // assign arbiter[0] = last_cpu[cpus-1]
+    //         || (arbiter[cpus-1] && !cpu_ports[cpus-1].re && !cpu_ports[cpus-1].we);
+    // generate
+    //     for (i = 1; i < cpus; i = i + 1) begin
+    //         assign arbiter[i] = last_cpu[i-1]
+    //                 || (arbiter[i-1] && !cpu_ports[i-1].re && !cpu_ports[i-1].we);
+    //     end
+    // endgenerate
+    // /* verilator lint_on UNOPTFLAT */
     
     // Next CPU to use the memory.
     logic[cpus-1:0] next_cpu;
     generate
         for (i = 0; i < cpus; i = i + 1) begin
-            assign next_cpu[i] = arbiter[i] && (cpu_ports[i].re || cpu_ports[i].we);
+            assign next_cpu[i] = (arbiter[i] || arbiter[i+cpus]) && (cpu_ports[i].re || cpu_ports[i].we);
         end
     endgenerate
+    
+    // logic[cpus-1:0] next_cpu;
+    // generate
+    //     for (i = 0; i < cpus; i = i + 1) begin
+    //         assign next_cpu[i] = arbiter[i] && (cpu_ports[i].re || cpu_ports[i].we);
+    //     end
+    // endgenerate
     
     // Arbitration at negedge, when RE and WE are stable.
     always @(negedge clk) begin
@@ -159,12 +179,12 @@ endmodule
 // No two MEMs may overlap.
 module axo_mem_mux#(
     // Data width, powers of 2 >= 32.
-    parameter integer   dlen,
+    parameter integer   dlen = 32,
     // Address width.
-    parameter integer   alen,
+    parameter integer   alen = 32,
     
     // Number of multiplexer to MEM ports, at least 2.
-    parameter integer   mems
+    parameter integer   mems = 2
 )(
     // Shared clock.
     input logic clk,
@@ -240,14 +260,14 @@ endmodule
 // No two MEMs may overlap.
 module axo_mem_xbar#(
     // Data width, powers of 2 >= 32.
-    parameter integer   dlen,
+    parameter integer   dlen = 32,
     // Address width.
-    parameter integer   alen,
+    parameter integer   alen = 32,
     
     // Number of CPU to crossbar ports, at least 2.
-    parameter integer   cpus,
+    parameter integer   cpus = 2,
     // Number of crossbar to MEM ports, at least 2.
-    parameter integer   mems
+    parameter integer   mems = 2
 )(
     // Shared clock.
     input logic clk,

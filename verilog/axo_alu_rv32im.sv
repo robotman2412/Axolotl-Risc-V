@@ -6,7 +6,7 @@
     https://creativecommons.org/licenses/by-nc-sa/4.0/
 */
 
-`timescale 1ns/1ns
+`timescale 1ns/1ps
 `include "axo_defines.sv"
 
 module axo32_alu_rv32im(

@@ -1,4 +1,4 @@
-`timescale 1ns/1ns
+`timescale 1ns/1ps
 `include "axo_defines.sv"
 
 module top(
@@ -34,7 +34,7 @@ module top(
     
     reg[15:0] irq_timer = 0;
     always @(posedge clk) begin
-        if (mem_port.addr == 255) begin
+        if (mem_port.addr == 256) begin
             $write("%s", mem_port.wdata[7:0]);
         end
         irq_timer <= irq_timer + 1;
@@ -50,18 +50,18 @@ module insn_rom(
     `include "obj_dir/rom.sv"
     assign bus.ready = 1;
     always @(*) begin
-        if (bus.we) begin
-            bus.error = 1;
-            bus.rdata = `AXO_MEM_READONLY;
-        end else if (bus.re && bus.addr[1:0]) begin
-            bus.error = 1;
-            bus.rdata = `AXO_MEM_EALIGN;
-        end else if (bus.re && bus.asize != 2) begin
-            bus.error = 1;
-            bus.rdata = `AXO_MEM_EASIZE;
-        end else begin
+        // if (bus.we) begin
+        //     bus.error = 1;
+        //     bus.rdata = `AXO_MEM_READONLY;
+        // end else if (bus.re && bus.addr[1:0]) begin
+        //     bus.error = 1;
+        //     bus.rdata = `AXO_MEM_EALIGN;
+        // end else if (bus.re && bus.asize != 2) begin
+        //     bus.error = 1;
+        //     bus.rdata = `AXO_MEM_EASIZE;
+        // end else begin
             bus.error = 0;
             bus.rdata = rom[bus.addr >> 2];
-        end
+        // end
     end
 endmodule

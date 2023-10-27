@@ -21,13 +21,13 @@ obj_dir/rom.sv: $(SRC)
 		-march=rv32im_zicsr -mabi=ilp32 \
 		-Tlinker.ld -o obj_dir/rom.elf $^
 	riscv32-unknown-elf-objcopy -O binary obj_dir/rom.elf obj_dir/rom.bin
-	../bin2rom.py obj_dir/rom.bin obj_dir/rom.sv rom 32
+	../../tools/bin2rom.py obj_dir/rom.bin obj_dir/rom.sv rom 32
 	riscv32-unknown-elf-objdump -t obj_dir/rom.elf
 
 build: $(HDL) obj_dir/rom.sv $(shell find ../../verilog -type f) bench.cpp
 	verilator -Wall -Wno-fatal -Wno-DECLFILENAME -Wno-VARHIDDEN -Wno-WIDTH -Wno-UNUSED \
 		--trace-fst -sv --cc --exe --build \
-		-I.. -I../../verilog \
+		-I../../verilog/include \
 		--top-module top \
 		-j $(shell nproc) bench.cpp $(HDL) -o sim
 
