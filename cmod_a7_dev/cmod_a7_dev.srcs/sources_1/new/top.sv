@@ -18,7 +18,7 @@ module top(
     input  wire         uart_recv,
     
     // Buttons on top of the board.
-    input  wire [1:0]   btn,
+    inout  wire [1:0]   btn,
     
     // RGB LED on top of the board.
     output logic        led_r,
@@ -36,12 +36,20 @@ module top(
     wire subclk_slow = clk_div[9];
     
     // Memory.
-    axo_mem_bus mem_bus();
-    blockram_32k bram(subclk_fast, mem_bus);
-    
+    axo_mem_bus mem_buses[2]();
     axo_mem_bus cpu_buses[2]();
     
-    axo_mem_demux mux(subclk_slow, rst, cpu_buses, mem_bus);
+    blockram_32k bram(subclk_fast, mem_buses[0]);
+    
+    axo_mem_xbar xbar(
+        subclk_slow, rst, cpu_buses, mem_buses,
+        '{0, 256}, '{8, 8}
+    );
+    
+    // GPIO.
+    axo_peri_bus peri_bus();
+    axo_mem_peri_bridge bridge(mem_buses[1], peri_bus);
+    axo_peri_gpio#(2) gpio(clk, peri_bus, '{led_r, btn[0]});
     
     // CPU core.
     wire ready;
@@ -49,16 +57,5 @@ module top(
     
     // Blinkenlights.
     assign led_b = ready;
-    initial begin
-        led_r = 1;
-    end
-    always @(posedge cpu_buses[0].we) begin
-        led_r <= led_r;
-    end
-    
-    reg[31:0] p_addr = 0;
-    always @(posedge clk) begin
-        p_addr <= mem_bus.addr;
-    end
-    assign led_g = 1;//!(mem_bus.addr == 16 || mem_bus.addr == 20) ^ btn[0];
+    assign led_g = 1;
 endmodule

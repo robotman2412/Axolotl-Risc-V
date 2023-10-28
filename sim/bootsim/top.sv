@@ -15,15 +15,22 @@ module top(
     wire        prog_error;
     wire[31:0]  prog_data;
     
-    axo_mem_bus mem_port();
-    insn_rom irom(mem_port);
+    axo_mem_bus mem_ports[2]();
+    insn_rom irom(mem_ports[0]);
+    
+    axo_peri_bus pbus();
+    wire[31:0] gpio_wires;
+    axo_peri_gpio gpio(clk, pbus, gpio_wires);
+    axo_mem_peri_bridge bridge(mem_ports[1], pbus);
     
     axo_mem_bus cpu_ports[2]();
     
-    axo_mem_demux#(32, 32, 2) mux(
+    axo_mem_xbar#(32, 32, 2, 2) xbar(
         clk, 0,
         cpu_ports,
-        mem_port
+        mem_ports,
+        '{0, 256},
+        '{8, 8}
     );
     
     axo_rv32im_zicsr#(.entrypoint(0), .hcf_on_trap(1)) cpu(
@@ -31,17 +38,6 @@ module top(
         cpu_ports[0], cpu_ports[1],
         irq
     );
-    
-    reg[15:0] irq_timer = 0;
-    always @(posedge clk) begin
-        if (mem_port.addr == 256) begin
-            $write("%s", mem_port.wdata[7:0]);
-        end
-        irq_timer <= irq_timer + 1;
-        if (irq_timer >= 25) begin
-            irq <= 16'hffff;
-        end
-    end
 endmodule
 
 module insn_rom(

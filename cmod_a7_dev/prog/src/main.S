@@ -1,26 +1,16 @@
 
     .global _start
 _start:
-    li a0, 32767
-    li a1, 1
-    sw a1, 0(a0)
+    nop
+    nop
+    nop
+    nop
+    li a0, 1
+    sw a0, 256(x0)
 
-halt:
-    j halt
-
-#     li a0, 32767
-#     li a1, 1
-    
-# .loop:
-#     sb a1, 0(a0)
-#     jal wait
-#     xori a1, a1, 1
-    
-#     j .loop
-    
-# wait:
-#     li t0, 1000
-# .waitloop:
-#     addi t0, t0, -1
-#     bnez t0, .waitloop
-#     ret
+loop:
+    lw a0, 260(x0)
+    xori a0, a0, 1
+    # srli a0, a0, 1
+    # sw a0, 260(x0)
+    j loop

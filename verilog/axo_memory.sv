@@ -79,6 +79,7 @@ module axo_mem_demux#(
     wire            any_occupied = occupied != 0;
     
     // Arbitration logic.
+    /* verilator lint_off UNOPTFLAT */
     logic[cpus*2-1:0] arbiter;
     assign arbiter[0] = 0;
     assign arbiter[cpus] = last_cpu[cpus-1]
@@ -91,18 +92,7 @@ module axo_mem_demux#(
                     || (arbiter[i-1] && !cpu_ports[i-1].re && !cpu_ports[i-1].we);
         end
     endgenerate
-    
-    // /* verilator lint_off UNOPTFLAT */
-    // logic[cpus-1:0] arbiter;
-    // assign arbiter[0] = last_cpu[cpus-1]
-    //         || (arbiter[cpus-1] && !cpu_ports[cpus-1].re && !cpu_ports[cpus-1].we);
-    // generate
-    //     for (i = 1; i < cpus; i = i + 1) begin
-    //         assign arbiter[i] = last_cpu[i-1]
-    //                 || (arbiter[i-1] && !cpu_ports[i-1].re && !cpu_ports[i-1].we);
-    //     end
-    // endgenerate
-    // /* verilator lint_on UNOPTFLAT */
+    /* verilator lint_on UNOPTFLAT */
     
     // Next CPU to use the memory.
     logic[cpus-1:0] next_cpu;

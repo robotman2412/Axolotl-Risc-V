@@ -3,8 +3,6 @@ riscv-spec-*.pdf
 *_dev/*.cache
 *_dev/*.sim
 *_dev/*.runs
-*_dev/*.ip_user_files
-*_dev/*.gen
 sim/*/build
 sim/*/obj_dir
 .vscode
