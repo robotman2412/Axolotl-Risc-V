@@ -4,7 +4,7 @@ _start:
     li a0, 32767
     li a1, 1
     sw a1, 0(a0)
-    
+
 halt:
     j halt
 

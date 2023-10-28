@@ -45,20 +45,20 @@ module top(
     
     // CPU core.
     wire ready;
-    axo_rv32im_zicsr#(0) cpu(subclk_slow, rst, 0, ready, cpu_buses[0], cpu_buses[1], 16'h0000);
+    axo_rv32im_zicsr#(.entrypoint(0), .hcf_on_trap(1)) cpu(subclk_slow, rst, 0, ready, cpu_buses[0], cpu_buses[1], 16'h0000);
     
     // Blinkenlights.
     assign led_b = ready;
     initial begin
         led_r = 1;
     end
-    always @(posedge cpu_buses[1].we) begin
-        led_r <= !led_r;
+    always @(posedge cpu_buses[0].we) begin
+        led_r <= led_r;
     end
     
     reg[31:0] p_addr = 0;
     always @(posedge clk) begin
         p_addr <= mem_bus.addr;
     end
-    assign led_g = !(mem_bus.addr == 16 || mem_bus.addr == 20) ^ btn[0];
+    assign led_g = 1;//!(mem_bus.addr == 16 || mem_bus.addr == 20) ^ btn[0];
 endmodule

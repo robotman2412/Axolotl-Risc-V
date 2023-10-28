@@ -43,7 +43,8 @@
 module axo_rv32im_zicsr#(
     parameter entrypoint   = 32'h4000_0000,
     parameter cpummio_addr = 32'hffff_ff00,
-    parameter mhartid      = 32'h0000_0000
+    parameter mhartid      = 32'h0000_0000,
+    parameter hcf_on_trap  = 0
 )(
     // Clock source.
     (* mark_debug = "true" *)
@@ -257,7 +258,7 @@ module axo_rv32im_zicsr#(
     
     /* ==== MISCELLANEOUS LOGIC ==== */
     // Reset signal logic.
-    assign ready = !rst_latch;
+    assign ready = !rst_latch && !(tr_trap && hcf_on_trap);
     
     initial begin
         rst_latch = 1;
@@ -318,7 +319,7 @@ module axo_rv32im_zicsr#(
     assign fw_branch         = !fw_branch_error && id_is_branch;
     assign fw_branch_predict = !fw_branch_error && id_branch_predict;
     assign fw_branch_error   = ex_branch_error;
-    assign fw_stall_ex       = 0;
+    assign fw_stall_ex       = tr_trap && hcf_on_trap;
     always @(*) begin
         if (b_if_id_valid && axo_insn_is_xret(b_if_id_insn) && b_if_id_valid && !b_if_id_trap && axo_insn_is_csr(b_id_ex_insn)) begin
             // MRET is vulnerable to CSR writes, stall it.

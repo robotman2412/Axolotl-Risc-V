@@ -4,6 +4,7 @@ _start:
     la t0, isr
     csrw mtvec, t0
     csrsi mtvec, 8
+    .word 0xdeadbeef
     
     li a0, 0xcafebabe
     

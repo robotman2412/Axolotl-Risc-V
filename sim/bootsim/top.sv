@@ -26,7 +26,7 @@ module top(
         mem_port
     );
     
-    axo_rv32im_zicsr#(0) cpu(
+    axo_rv32im_zicsr#(.entrypoint(0), .hcf_on_trap(1)) cpu(
         clk, 1'b0, 1'b0, ready,
         cpu_ports[0], cpu_ports[1],
         irq
