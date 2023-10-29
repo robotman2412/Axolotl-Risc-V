@@ -7,6 +7,19 @@ module top(
     reg [15:0]  irq = 0;
     wire        ready;
     
+    reg rst = 0;
+    reg[3:0] delay = 0;
+    always @(posedge clk) begin
+        if (delay == 15) begin
+            rst <= 0;
+        end else if (delay == 14) begin
+            rst <= 1;
+            delay <= delay + 1;
+        end else begin
+            delay <= delay + 1;
+        end
+    end
+    
     // unaligned_ram#(32, 256) ram(clk, mem_re, mem_we, mem_asize, mem_addr, mem_wdata, mem_rdata);
     
     wire        prog_re;
@@ -34,7 +47,7 @@ module top(
     );
     
     axo_rv32im_zicsr#(.entrypoint(0), .hcf_on_trap(1)) cpu(
-        clk, 1'b0, 1'b0, ready,
+        clk, 1'b0, rst, ready,
         cpu_ports[0], cpu_ports[1],
         irq
     );

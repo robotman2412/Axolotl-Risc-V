@@ -75,9 +75,8 @@ module axo_rv32im_zicsr#(
     /* ==== WIRE AND REGISTER DEFINITIONS ==== */
     /* Miscellaneous logic */
     // Latched reset signal.
+    (* mark_debug = "true" *)
     reg         rst_latch;
-    // Reset detect signal.
-    reg         rst_detect;
     
     /* Exception logic */
     // Exception from EX stage.
@@ -264,16 +263,8 @@ module axo_rv32im_zicsr#(
         rst_latch = 1;
     end
     
-    always @(negedge clk) begin
-        if (rst) begin
-            rst_latch <= 1;
-        end else if (rst_detect) begin
-            rst_latch <= 0;
-        end
-    end
-    
     always @(posedge clk) begin
-        rst_detect <= rst_latch;
+        rst_latch <= rst;
     end
     
     

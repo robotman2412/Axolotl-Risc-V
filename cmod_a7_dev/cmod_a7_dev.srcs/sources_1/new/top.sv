@@ -25,12 +25,14 @@ module top(
     output logic        led_g,
     output logic        led_b
 );
-    assign rst = btn[1];
+    (* mark_debug = "true" *)
+    reg rst = 0;
     
     // Simple clock generation logic.
     reg[9:0] clk_div;
     always @(posedge clk) begin
         clk_div <= clk_div + 1;
+        rst     <= btn[1];
     end
     wire subclk_fast = clk_div[7];
     wire subclk_slow = clk_div[9];
@@ -53,9 +55,9 @@ module top(
     
     // CPU core.
     wire ready;
-    axo_rv32im_zicsr#(.entrypoint(0), .hcf_on_trap(1)) cpu(subclk_slow, rst, 0, ready, cpu_buses[0], cpu_buses[1], 16'h0000);
+    axo_rv32im_zicsr#(.entrypoint(0), .hcf_on_trap(1)) cpu(subclk_slow, 0, rst, ready, cpu_buses[0], cpu_buses[1], 16'h0000);
     
     // Blinkenlights.
     assign led_b = ready;
-    assign led_g = 1;
+    assign led_g = !rst;
 endmodule

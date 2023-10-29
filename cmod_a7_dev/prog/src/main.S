@@ -3,6 +3,8 @@
 _start:
     nop
     nop
+halt:
+    j halt
     nop
     nop
     li a0, 1

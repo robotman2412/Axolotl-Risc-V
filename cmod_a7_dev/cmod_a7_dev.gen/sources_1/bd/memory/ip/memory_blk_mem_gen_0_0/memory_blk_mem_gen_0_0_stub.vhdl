@@ -2,10 +2,10 @@
 -- Copyright 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2023.2 (lin64) Build 4029153 Fri Oct 13 20:13:54 MDT 2023
--- Date        : Sat Oct 28 17:42:49 2023
+-- Date        : Sat Oct 28 20:23:20 2023
 -- Host        : LinuxBot running 64-bit Arch Linux
--- Command     : write_vhdl -force -mode synth_stub -rename_top memory_blk_mem_gen_0_0 -prefix
---               memory_blk_mem_gen_0_0_ memory_blk_mem_gen_0_0_stub.vhdl
+-- Command     : write_vhdl -force -mode synth_stub
+--               /home/julian/the_cpu/axo32/cmod_a7_dev/cmod_a7_dev.gen/sources_1/bd/memory/ip/memory_blk_mem_gen_0_0/memory_blk_mem_gen_0_0_stub.vhdl
 -- Design      : memory_blk_mem_gen_0_0
 -- Purpose     : Stub declaration of top-level module interface
 -- Device      : xc7a15tcpg236-1
