@@ -43,11 +43,9 @@
 module axo_rv32im_zicsr#(
     parameter entrypoint   = 32'h4000_0000,
     parameter cpummio_addr = 32'hffff_ff00,
-    parameter mhartid      = 32'h0000_0000,
-    parameter hcf_on_trap  = 0
+    parameter mhartid      = 32'h0000_0000
 )(
     // Clock source.
-    (* mark_debug = "true" *)
     input  logic clk,
     // Clock source for mtime.
     input  logic rtc_clk,
@@ -75,7 +73,6 @@ module axo_rv32im_zicsr#(
     /* ==== WIRE AND REGISTER DEFINITIONS ==== */
     /* Miscellaneous logic */
     // Latched reset signal.
-    (* mark_debug = "true" *)
     reg         rst_latch;
     
     /* Exception logic */
@@ -86,7 +83,6 @@ module axo_rv32im_zicsr#(
     // Interrupts pending.
     wire [31:0] tr_irq = irq << 16;
     // Interrupt or trap raised.
-    (* mark_debug = "true" *)
     logic       tr_trap;
     // Interrupt or trap cause.
     logic[4:0]  tr_trap_cause;
@@ -117,13 +113,10 @@ module axo_rv32im_zicsr#(
     // Forward result to RHS.
     logic       fw_rhs;
     // Processing a jump or conditional branch.
-    (* mark_debug = "true" *)
     logic       fw_branch;
     // Branch prediction result.
-    (* mark_debug = "true" *)
     logic       fw_branch_predict;
     // Branch misprediction detected.
-    (* mark_debug = "true" *)
     logic       fw_branch_error;
     
     /* Pipeline stage 1/3: fetch */
@@ -132,7 +125,6 @@ module axo_rv32im_zicsr#(
     // IF: Next instruction address.
     logic[31:1] if_next_pc;
     // IF: Program counter.
-    (* mark_debug = "true" *)
     reg  [31:1] if_pc;
     // IF: Unpredicted path.
     reg  [31:1] if_alt_pc;
@@ -166,6 +158,8 @@ module axo_rv32im_zicsr#(
     logic       id_is_branch;
     // ID: Branch is predicted taken.
     logic       id_branch_predict;
+    // ID: Instruction is an MRET.
+    logic       id_is_mret;
     // ID: Instruction is valid.
     logic       id_insn_valid;
     // ID: Instruction is legal in current privilege mode.
@@ -257,7 +251,7 @@ module axo_rv32im_zicsr#(
     
     /* ==== MISCELLANEOUS LOGIC ==== */
     // Reset signal logic.
-    assign ready = !rst_latch && !(tr_trap && hcf_on_trap);
+    assign ready = !rst_latch;
     
     initial begin
         rst_latch = 1;
@@ -277,7 +271,13 @@ module axo_rv32im_zicsr#(
     // Trap and interrupt detection.
     integer irq_no;
     always @(*) begin
-        if (tr_ex) begin
+        if (fw_stall_if || fw_stall_if_mem || !b_id_ex_valid) begin
+            // Cannot generate traps while stalled or while PC is invalid.
+            tr_trap         = 0;
+            tr_trap_cause   = 'bx;
+            tr_is_interrupt = 'bx;
+            
+        end else if (tr_ex) begin
             // Prioritise traps over interrupts.
             tr_trap         = 1;
             tr_trap_cause   = tr_ex_cause;
@@ -310,7 +310,7 @@ module axo_rv32im_zicsr#(
     assign fw_branch         = !fw_branch_error && id_is_branch;
     assign fw_branch_predict = !fw_branch_error && id_branch_predict;
     assign fw_branch_error   = ex_branch_error;
-    assign fw_stall_ex       = tr_trap && hcf_on_trap;
+    assign fw_stall_ex       = 0;
     always @(*) begin
         if (b_if_id_valid && axo_insn_is_xret(b_if_id_insn) && b_if_id_valid && !b_if_id_trap && axo_insn_is_csr(b_id_ex_insn)) begin
             // MRET is vulnerable to CSR writes, stall it.
@@ -451,18 +451,22 @@ module axo_rv32im_zicsr#(
         if (b_if_id_valid && axo_insn_opcode(b_if_id_insn) == `RV_OP_BRANCH) begin
             // BRANCH.
             id_is_branch      = 1;
+            id_is_mret        = 0;
             id_branch_predict = b_if_id_insn[31];
         end else if (b_if_id_valid && axo_insn_is_branch(b_if_id_insn)) begin
             // JAL / JALR.
             id_is_branch      = 1;
+            id_is_mret        = 0;
             id_branch_predict = 1;
         end else if (b_if_id_valid && axo_insn_is_xret(b_if_id_insn)) begin
             // MRET.
             id_is_branch      = 1;
+            id_is_mret        = 1;
             id_branch_predict = 1;
         end else begin
             // Not a control transfer.
             id_is_branch      = 0;
+            id_is_mret        = 0;
             id_branch_predict = 'bx;
         end
     end
@@ -515,6 +519,11 @@ module axo_rv32im_zicsr#(
             id_rhs[11:0]    = b_if_id_insn[31:20];
             id_rhs[31:12]   = b_if_id_insn[31] ? 20'hfffff : 20'h00000;
             
+        end else if (axo_insn_opcode(b_if_id_insn) == `RV_OP_SYSTEM && b_if_id_insn[14]) begin
+            // UIMM for CSR*I.
+            id_rhs[4:0]     = id_rs2;
+            id_rhs[31:5]    = 0;
+            
         end else begin
             // Register value.
             id_rhs          = fw_rhs ? ex_result : id_rs2_val;
@@ -565,7 +574,7 @@ module axo_rv32im_zicsr#(
     
     
     /* ==== PIPELINE STAGE 3/3: EXECUTE ==== */
-    assign ex_valid = b_id_ex_valid && !tr_trap;
+    assign ex_valid = b_id_ex_valid && !(tr_trap && !tr_is_interrupt);
     assign ex_rd    = b_id_ex_rd;
     
     // ALU logic.
@@ -575,7 +584,7 @@ module axo_rv32im_zicsr#(
     );
     
     // Definitive branch results.
-    assign ex_is_branch    = ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_BRANCH;
+    assign ex_is_branch    = b_id_ex_valid && axo_insn_opcode(b_id_ex_insn) == `RV_OP_BRANCH;
     assign ex_branch_taken = ex_alu_res[0];
     assign ex_branch_error = ex_is_branch && ex_branch_taken != b_id_ex_branch_predict;
     
@@ -604,6 +613,7 @@ module axo_rv32im_zicsr#(
         clk, rst_latch,
         b_id_ex_off, ex_csr_din, ex_csr_res, ex_csr_we, ex_csr_trap,
         tr_irq, b_id_ex_pc, tr_trap_cause, tr_trap, tr_is_interrupt,
+        b_if_id_valid && id_insn_valid && id_is_mret,
         tr_ie, tr_vec, tr_ret_addr
     );
     
@@ -694,6 +704,9 @@ module axo_rv32im_zicsr_csrs#(
     input  logic         trap,
     // Is an interrupt.
     input  logic         is_int,
+    
+    // MRET instruction executed.
+    input  logic         mret,
     
     // Current interrupts enabled, masked by CSR mie and CSR mstatus.
     output logic[31:0]   mie,
@@ -801,9 +814,13 @@ module axo_rv32im_zicsr_csrs#(
             csr_mscratch        <= 0;
             csr_mepc            <= 0;
             
+        end else if (mret) begin
+            // CSR changes of mret instruction.
+            csr_mstatus_mie     <= csr_mstatus_mpie;
+            
         end else if (trap) begin
             // CSR changes on trap or interrupt.
-            csr_mstatus_mpie    <= 1;
+            csr_mstatus_mpie    <= csr_mstatus_mie;
             csr_mstatus_mie     <= 0;
             csr_mepc            <= mepc_in;
             csr_mcause_int      <= is_int;

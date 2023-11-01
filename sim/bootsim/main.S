@@ -1,19 +1,37 @@
 
     .global _start
 _start:
-    la t0, isr
-    csrw mtvec, t0
+    la a0, isr
+    csrw mtvec, a0
+    li a0, 0x00010000
+    csrw mie, a0
     
-    li a0, 1
+    li a0, 'H'
     sw a0, 256(x0)
-    sw a0, 260(x0)
-
-    li s0, 0xf00dbabe
-halt:
-    j halt
+    li a0, 'i'
+    # sw a0, 256(x0)
+    # li a0, ' '
+    # sw a0, 256(x0)
+    # li a0, 'T'
+    # sw a0, 256(x0)
+    # li a0, 'h'
+    # sw a0, 256(x0)
+    # li a0, 'e'
+    # sw a0, 256(x0)
+    # li a0, 'r'
+    # sw a0, 256(x0)
+    # li a0, '.'
+    # sw a0, 256(x0)
+    # li a0, '\r'
+    # sw a0, 256(x0)
+    # li a0, '\n'
+    # sw a0, 256(x0)
+    
+    csrsi mstatus, 8
+loop:
+    j loop
 
 isr:
-    li s0, 0xdeadbeef
-    j halt
-    
-    nop
+    lw a0, 256(x0)
+    sw a0, 256(x0)
+    mret

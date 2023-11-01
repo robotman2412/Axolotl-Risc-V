@@ -34,8 +34,6 @@ interface axo_peri_bus#(
     modport MEM (output ready, rdata, input re, we, addr, wdata);
 endinterface
 
-
-
 // Axo memory bus to peripheral bus bridge / adapter.
 module axo_mem_peri_bridge#(
     // Address width.
@@ -156,31 +154,27 @@ endmodule
 // Basic GPIO module.
 module axo_peri_gpio#(
     // Number of I/O pins per bank.
-    parameter num_pins      = 32,
-    // Output direction polarity, 0: active-high, 1: active-low.
-    parameter invert_oe     = 0,
-    // Pin polarity, 0: active-high, 1: active-low.
-    parameter invert_level  = 0
+    parameter num_pins      = 32
 )(
     // Peripheral bus clock.
     input  logic                clk,
     // Peripheral bus interface.
     axo_peri_bus.MEM            bus,
-    // I/O pin banks.
-    inout  wire[num_pins-1:0]   pins
+    
+    // I/O pin output levels.
+    output logic[num_pins-1:0]   iolevel,
+    // I/O pin output enables.
+    output logic[num_pins-1:0]   iodir,
+    // I/O pin sense.
+    input  wire[num_pins-1:0]    sense
 );
-    // I/O direction registers.
-    reg  [num_pins-1:0] iodir;
-    // I/O output registers.
-    reg  [num_pins-1:0] iolevel;
-    // I/I input registers.
+    // I/O input registers.
     logic[num_pins-1:0] iosense;
     
     generate
         genvar i;
         for (i = 0; i < num_pins; i = i + 1) begin
-            assign pins[i]    = iodir ^ invert_oe ? iolevel[i] ^ invert_level : 'bz;
-            assign iosense[i] = iodir ^ invert_oe ? iolevel[i] : pins[i] ^ invert_level;
+            assign iosense[i] = iodir ? iolevel[i] : sense[i];
         end
     endgenerate
     

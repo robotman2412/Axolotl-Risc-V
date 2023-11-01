@@ -60,7 +60,7 @@ module axo_regfile#(
     assign dout2 = rs2 ? data[rs2] : 0;
     
     // Writing logic.
-    always @(posedge clk, posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             // Reset regfile to all 0.
             for (i = 1; i < 32; i=i+1) begin

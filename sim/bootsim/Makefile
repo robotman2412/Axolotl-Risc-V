@@ -9,6 +9,7 @@ HDL = 	top.sv \
 		../../verilog/axo_alu_rv32im.sv \
 		../../verilog/axo_base.sv \
 		../../verilog/axo_peripherals.sv \
+		../../verilog/peripherals/uart.sv \
 		../../verilog/axo_rv32im_zicsr.sv
 
 SRC =	main.S

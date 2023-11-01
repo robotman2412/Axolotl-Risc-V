@@ -2,23 +2,17 @@
 `include "axo_defines.sv"
 
 module top(
-    input wire clk
+    input  wire clk,
+    output wire txd
 );
-    reg [15:0]  irq = 0;
+    wire[15:0]  irq;
     wire        ready;
     
-    reg rst = 0;
-    reg[3:0] delay = 0;
-    always @(posedge clk) begin
-        if (delay == 15) begin
-            rst <= 0;
-        end else if (delay == 14) begin
-            rst <= 1;
-            delay <= delay + 1;
-        end else begin
-            delay <= delay + 1;
-        end
-    end
+    wire rst = 0;
+    
+    reg[8:0] rxsample = 8'b0011_0101;
+    reg[1:0] rxdiv = 0;
+    reg rxd = 1;
     
     // unaligned_ram#(32, 256) ram(clk, mem_re, mem_we, mem_asize, mem_addr, mem_wdata, mem_rdata);
     
@@ -32,9 +26,23 @@ module top(
     insn_rom irom(mem_ports[0]);
     
     axo_peri_bus pbus();
-    wire[31:0] gpio_wires;
-    axo_peri_gpio gpio(clk, pbus, gpio_wires);
     axo_mem_peri_bridge bridge(mem_ports[1], pbus);
+    wire rxd_full;
+    wire txd_empty;
+    axo_peri_uart#(4, 4, 1) uart(clk, rst, pbus, clk, txd, rxd, rxd_full, txd_empty);
+    assign irq[15:1] = 0;
+    assign irq[0]    = rxd_full;
+    // wire[31:0] gpio_wires;
+    // axo_peri_gpio gpio(clk, pbus, gpio_wires);
+    
+    always @(posedge clk) begin
+        rxdiv <= rxdiv + 1;
+        if (rxdiv == 0) begin
+            rxd <= rxsample[8];
+            rxsample[8:1] <= rxsample[7:0];
+            rxsample[0]   <= 1;
+        end
+    end
     
     axo_mem_bus cpu_ports[2]();
     
@@ -46,7 +54,7 @@ module top(
         '{8, 8}
     );
     
-    axo_rv32im_zicsr#(.entrypoint(0), .hcf_on_trap(1)) cpu(
+    axo_rv32im_zicsr#(.entrypoint(0)) cpu(
         clk, 1'b0, rst, ready,
         cpu_ports[0], cpu_ports[1],
         irq
