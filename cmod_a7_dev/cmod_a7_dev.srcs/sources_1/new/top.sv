@@ -59,7 +59,7 @@ module top(
     
     axo_mem_xbar xbar(
         subclk_slow, rst, cpu_buses, mem_buses,
-        '{0, 256}, '{8, 8}
+        '{0, 4096}, '{12, 8}
     );
     
     // Peripherals.
