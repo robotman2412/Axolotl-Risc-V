@@ -10,37 +10,36 @@
 
 module main(
     (* mark_debug = "true" *)
-    input  logic    clk,
+    input  logic    clk_fast,
     (* mark_debug = "true" *)
     input  logic    rst
 );
-    (* mark_debug = "true" *)
-    logic[3:0] we;
-    (* mark_debug = "true" *)
-    logic[4:0] addr;
-    (* mark_debug = "true" *)
-    logic[31:0] wdata;
-    (* mark_debug = "true" *)
-    logic[31:0] rdata;
+    `include "axo_functions.sv"
     
-    raw_block_ram#(.abits(5), .write_first(0)) bram(clk, we, addr, wdata, rdata);
+    reg clk_slow = 0;
+    always @(posedge clk_fast) begin
+        clk_slow <= !clk_slow;
+    end
     
-    reg[7:0] cycle = 0;
-    always @(negedge clk) begin
-        if (rst) begin
-            cycle <= 0;
-        end else begin
-            cycle <= cycle + 1;
-        end
+    axo_mem_bus bus();
+    aligned_ram#(.init_file({axo_parentdir(`__FILE__), "/../build/rom.mem"})) ram(clk_fast, clk_slow, bus);
+    
+    reg[7:0] cycle;
+    always @(posedge clk_slow) begin
+        cycle <= rst ? 0 : cycle + 1;
     end
     
     always @(*) begin
         case (cycle)
-            default: begin we = 4'b0000; addr = 5'h00; wdata = 32'h0000_0000; end
-            1: begin we = 4'b1111; addr = 5'h00; wdata = 32'hdead_beef; end
-            2: begin we = 4'b1001; addr = 5'h01; wdata = 32'hdead_beef; end
-            3: begin we = 4'b0011; addr = 5'h0f; wdata = 32'hf00d_babe; end
-            4: begin we = 4'b1100; addr = 5'h0f; wdata = 32'hf00d_babe; end
+            default: begin bus.re = 0; bus.we = 0; bus.asize = 0; bus.addr = 32'h0000_0000; bus.wdata = 32'h0000_0000; end
+            // ?: begin bus.re = 0; bus.we = 0; bus.asize = 0; bus.addr = 32'h0000_0000; bus.wdata = 32'h0000_0000; end
+            
+            2:  begin bus.re = 1; bus.we = 0; bus.asize = 2; bus.addr = 32'h0000_0000; bus.wdata = 32'h0000_0000; end
+            3:  begin bus.re = 1; bus.we = 0; bus.asize = 2; bus.addr = 32'h0000_0004; bus.wdata = 32'h0000_0000; end
+            4:  begin bus.re = 1; bus.we = 0; bus.asize = 2; bus.addr = 32'h0000_0008; bus.wdata = 32'h0000_0000; end
+            5:  begin bus.re = 1; bus.we = 0; bus.asize = 2; bus.addr = 32'h0000_000C; bus.wdata = 32'h0000_0000; end
+            6:  begin bus.re = 1; bus.we = 0; bus.asize = 2; bus.addr = 32'h0000_0010; bus.wdata = 32'h0000_0000; end
+            7:  begin bus.re = 1; bus.we = 0; bus.asize = 2; bus.addr = 32'h0000_0014; bus.wdata = 32'h0000_0000; end
         endcase
     end
 endmodule

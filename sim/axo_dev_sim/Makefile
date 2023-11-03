@@ -21,7 +21,7 @@ all: wave
 build: $(HDL) $(shell find ../../verilog -type f) bench.cpp
 	verilator -Wall -Wno-fatal -Wno-DECLFILENAME -Wno-VARHIDDEN -Wno-WIDTH -Wno-UNUSED \
 		--trace-fst -sv --cc --exe --build \
-		-I../../verilog/include \
+		-Ihdl -I../../axo_dev/hdl -I../../verilog -I../../verilog/include \
 		--top-module top \
 		-j $(shell nproc) bench.cpp $(HDL) -o sim
 

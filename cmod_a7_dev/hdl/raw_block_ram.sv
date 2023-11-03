@@ -21,7 +21,11 @@ module raw_block_ram#(
     // Generate write-before-read instead of read-before-write.
     parameter bit    write_first = 0,
     // Initialization file, or "none" if not used.
-    parameter string init_file   = "none"
+    // The file must contain hexadecimal values seperated by commas.
+    parameter string init_file   = "",
+    
+    // Number of data bits.
+    localparam       dbits       = dbytes * blen
 )(
     // RAM clock.
     input  logic                clk,
@@ -34,15 +38,14 @@ module raw_block_ram#(
     // Read data.
     output logic[dbits-1:0]     rdata
 );
-    // Number of data bits.
-    localparam dbits = dbytes * blen;
+    `include "axo_functions.sv"
     
     xpm_memory_spram#(
         .ADDR_WIDTH_A(abits),
         .AUTO_SLEEP_TIME(0),
-        .BYTE_WRITE_WIDTH_A(dbits),
+        .BYTE_WRITE_WIDTH_A(blen),
         .CASCADE_HEIGHT(0),
-        .MEMORY_INIT_FILE(init_file),
+        .MEMORY_INIT_FILE(init_file == "" ? "none" : init_file),
         .MEMORY_SIZE(dbits << abits),
         .READ_DATA_WIDTH_A(dbits),
         .READ_LATENCY_A(1),

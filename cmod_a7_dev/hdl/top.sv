@@ -28,7 +28,11 @@ module top(
     // PMOD JA.
     output wire[7:0]    pmod
 );
-    main main(clk, btn[1]);
+    reg[1:0] div;
+    always @(posedge clk) begin
+        div <= div + 1;
+    end
+    main main(div[1], btn[1]);
     
     // Blinkenlights.
     assign led_b = 1;

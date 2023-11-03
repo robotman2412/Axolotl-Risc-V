@@ -21,12 +21,16 @@ module raw_block_ram#(
     // Generate write-before-read instead of read-before-write.
     parameter bit    write_first = 0,
     // Initialization file, if any.
-    parameter string init_file   = ""
+    // The file must contain hexadecimal values seperated by commas.
+    parameter string init_file   = "",
+    
+    // Number of data bits.
+    localparam       dbits       = dbytes * blen
 )(
     // RAM clock.
     input  logic            clk,
     // Per-byte write enable.
-    input  logic[blen-1:0]  we,
+    input  logic[dbytes-1:0] we,
     // Address.
     input  logic[abits-1:0] addr,
     // Write data.
@@ -34,19 +38,46 @@ module raw_block_ram#(
     // Read data.
     output logic[dbits-1:0] rdata
 );
+    `include "axo_functions.sv"
     genvar i;
-    
-    // Number of data bits.
-    localparam dbits = dbytes * blen;
     
     // Data storage.
     reg[dbits-1:0] storage[1 << abits];
         
     // Initial value in simulation.
     initial begin
-        integer i;
+        // Initially fill with zeroes.
+        integer i, fd, tmp, ord, waddr;
+        string data;
         for (i = 0; i < 1 << abits; i = i + 1) begin
             storage[i] = 0;
+        end
+        
+        if (init_file != "") begin
+            $display("Loading init file at %s", init_file);
+            data = axo_load_file(init_file);
+            tmp  = 0;
+            for (i = 0; i < data.len(); i = i + 1) begin
+                ord = data.getc(i);
+                if (ord >= 8'h30 && ord <= 8'h39) begin
+                    tmp = tmp << 4;
+                    tmp = tmp | ord[3:0];
+                end else if (ord >= 8'h41 && ord <= 8'h46) begin
+                    tmp = tmp << 4;
+                    tmp = tmp | ord - 8'h41 + 8'h0A;
+                end else if (ord >= 8'h61 && ord <= 8'h66) begin
+                    tmp = tmp << 4;
+                    tmp = tmp | ord - 8'h61 + 8'h0A;
+                end else if (ord == 8'h2C) begin
+                    storage[waddr] = tmp;
+                    waddr = waddr + 1;
+                    tmp = 0;
+                end else if (ord > 32) begin
+                    $display("Error: Unexpected character '%s'", ord);
+                    $finish;
+                end
+            end
+            storage[waddr] = tmp;
         end
     end
     

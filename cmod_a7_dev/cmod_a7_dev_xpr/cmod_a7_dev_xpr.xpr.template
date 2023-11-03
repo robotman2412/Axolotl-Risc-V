@@ -177,6 +177,12 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
+      <File Path="$PPRDIR/../../axo_dev/build/rom.mem">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <File Path="$PPRDIR/../../axo_dev/hdl/aligned_ram.sv">
         <FileInfo>
           <Attr Name="AutoDisabled" Val="1"/>

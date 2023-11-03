@@ -4,6 +4,7 @@ riscv-spec-*.pdf
 *_dev/*.cache
 *_dev/*.sim
 *_dev/*.runs
+axo_dev/build
 sim/*/build
 sim/*/obj_dir
 .vscode
