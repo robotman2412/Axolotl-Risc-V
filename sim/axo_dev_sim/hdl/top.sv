@@ -11,8 +11,5 @@
 module top(
     input  logic clk
 );
-    wire[31:0]rdata;
-    raw_block_ram bram(
-        clk,0,0,0,rdata
-    );
+    main main(clk, 0);
 endmodule

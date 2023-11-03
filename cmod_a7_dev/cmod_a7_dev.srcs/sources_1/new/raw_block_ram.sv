@@ -24,15 +24,15 @@ module raw_block_ram#(
     parameter string init_file   = "none"
 )(
     // RAM clock.
-    input  logic            clk,
+    input  logic                clk,
     // Per-byte write enable.
-    input  logic[blen-1:0]  we,
+    input  logic[dbytes-1:0]    we,
     // Address.
-    input  logic[abits-1:0] addr,
+    input  logic[abits-1:0]     addr,
     // Write data.
-    input  logic[dbits-1:0] wdata,
+    input  logic[dbits-1:0]     wdata,
     // Read data.
-    output logic[dbits-1:0] rdata
+    output logic[dbits-1:0]     rdata
 );
     // Number of data bits.
     localparam dbits = dbytes * blen;

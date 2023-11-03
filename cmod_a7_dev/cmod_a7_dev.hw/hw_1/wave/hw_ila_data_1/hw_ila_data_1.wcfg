@@ -9,145 +9,61 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0"></ZoomStartTime>
-      <ZoomEndTime time="9"></ZoomEndTime>
-      <Cursor1Time time="0"></Cursor1Time>
+      <ZoomStartTime time="86"></ZoomStartTime>
+      <ZoomEndTime time="95"></ZoomEndTime>
+      <Cursor1Time time="88"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="276"></NameColumnWidth>
-      <ValueColumnWidth column_width="90"></ValueColumnWidth>
+      <ValueColumnWidth column_width="86"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="20" />
-   <wvobject type="array" fp_name="cpu/if_pc">
+   <WVObjectSize size="6" />
+   <wave_markers>
+   </wave_markers>
+   <wvobject type="logic" fp_name="main/clk">
       <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">cpu/if_pc[9:1]</obj_property>
-      <obj_property name="ObjectShortName">if_pc[9:1]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-      <obj_property name="LABELRADIX">true</obj_property>
-      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="cpu/clk">
-      <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">cpu/clk</obj_property>
+      <obj_property name="ElementShortName">main/clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
       <obj_property name="LABELRADIX">true</obj_property>
       <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="rst">
+   <wvobject type="logic" fp_name="main/rst">
       <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">rst</obj_property>
+      <obj_property name="ElementShortName">main/rst</obj_property>
       <obj_property name="ObjectShortName">rst</obj_property>
       <obj_property name="LABELRADIX">true</obj_property>
       <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="cpu/rst_latch">
+   <wvobject type="array" fp_name="main/we">
       <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">cpu/rst_latch</obj_property>
-      <obj_property name="ObjectShortName">rst_latch</obj_property>
-      <obj_property name="LABELRADIX">true</obj_property>
-      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="cpu/fw_branch">
-      <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">cpu/fw_branch</obj_property>
-      <obj_property name="ObjectShortName">fw_branch</obj_property>
+      <obj_property name="ElementShortName">main/we[3:0]</obj_property>
+      <obj_property name="ObjectShortName">we[3:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
       <obj_property name="LABELRADIX">true</obj_property>
       <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="cpu/fw_branch_error">
+   <wvobject type="array" fp_name="main/addr">
       <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">cpu/fw_branch_error</obj_property>
-      <obj_property name="ObjectShortName">fw_branch_error</obj_property>
+      <obj_property name="ElementShortName">main/addr[4:0]</obj_property>
+      <obj_property name="ObjectShortName">addr[4:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
       <obj_property name="LABELRADIX">true</obj_property>
       <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="cpu/fw_branch_predict">
+   <wvobject type="array" fp_name="main/wdata">
       <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">cpu/fw_branch_predict</obj_property>
-      <obj_property name="ObjectShortName">fw_branch_predict</obj_property>
+      <obj_property name="ElementShortName">main/wdata[31:0]</obj_property>
+      <obj_property name="ObjectShortName">wdata[31:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
       <obj_property name="LABELRADIX">true</obj_property>
       <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="cpu/tr_trap">
+   <wvobject type="array" fp_name="main/rdata">
       <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">cpu/tr_trap</obj_property>
-      <obj_property name="ObjectShortName">tr_trap</obj_property>
-      <obj_property name="LABELRADIX">true</obj_property>
-      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="cpu/ex_addr">
-      <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">cpu/ex_addr[31:0]</obj_property>
-      <obj_property name="ObjectShortName">ex_addr[31:0]</obj_property>
+      <obj_property name="ElementShortName">main/rdata[31:0]</obj_property>
+      <obj_property name="ObjectShortName">rdata[31:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
       <obj_property name="LABELRADIX">true</obj_property>
       <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="gpio/iodir[0]_i_1_n_0">
-      <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">gpio/iodir[0]_i_1_n_0</obj_property>
-      <obj_property name="ObjectShortName">iodir[0]_i_1_n_0</obj_property>
-      <obj_property name="LABELRADIX">true</obj_property>
-      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="gpio/iodir[1]_i_1_n_0">
-      <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">gpio/iodir[1]_i_1_n_0</obj_property>
-      <obj_property name="ObjectShortName">iodir[1]_i_1_n_0</obj_property>
-      <obj_property name="LABELRADIX">true</obj_property>
-      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="gpio/iolevel[0]_i_1_n_0">
-      <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">gpio/iolevel[0]_i_1_n_0</obj_property>
-      <obj_property name="ObjectShortName">iolevel[0]_i_1_n_0</obj_property>
-      <obj_property name="LABELRADIX">true</obj_property>
-      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="gpio/iolevel[1]_i_1_n_0">
-      <obj_property name="DisplayName">FullPathName</obj_property>
-      <obj_property name="ElementShortName">gpio/iolevel[1]_i_1_n_0</obj_property>
-      <obj_property name="ObjectShortName">iolevel[1]_i_1_n_0</obj_property>
-      <obj_property name="LABELRADIX">true</obj_property>
-      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="gpio/iodir">
-      <obj_property name="ElementShortName">gpio/iodir[1:0]</obj_property>
-      <obj_property name="ObjectShortName">iodir[1:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="gpio/iodir">
-      <obj_property name="ElementShortName">gpio/iodir[1:0]</obj_property>
-      <obj_property name="ObjectShortName">iodir[1:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="gpio/iodir">
-      <obj_property name="ElementShortName">gpio/iodir[1:0]</obj_property>
-      <obj_property name="ObjectShortName">iodir[1:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="gpio/iolevel">
-      <obj_property name="ElementShortName">gpio/iolevel[1:0]</obj_property>
-      <obj_property name="ObjectShortName">iolevel[1:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="gpio/iolevel">
-      <obj_property name="ElementShortName">gpio/iolevel[1:0]</obj_property>
-      <obj_property name="ObjectShortName">iolevel[1:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="gpio/iolevel">
-      <obj_property name="ElementShortName">gpio/iolevel[1:0]</obj_property>
-      <obj_property name="ObjectShortName">iolevel[1:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="gpio/sense">
-      <obj_property name="ElementShortName">gpio/sense[1:1]</obj_property>
-      <obj_property name="ObjectShortName">sense[1:1]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
 </wave_config>

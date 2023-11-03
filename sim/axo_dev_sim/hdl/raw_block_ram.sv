@@ -34,23 +34,23 @@ module raw_block_ram#(
     // Read data.
     output logic[dbits-1:0] rdata
 );
+    genvar i;
+    
     // Number of data bits.
     localparam dbits = dbytes * blen;
     
     // Data storage.
     reg[dbits-1:0] storage[1 << abits];
+        
+    // Initial value in simulation.
+    initial begin
+        integer i;
+        for (i = 0; i < 1 << abits; i = i + 1) begin
+            storage[i] = 0;
+        end
+    end
     
     generate
-        genvar i;
-        
-        // Initial value in simulation.
-        initial begin
-            integer i;
-            for (i = 0; i < 1 << abits; i = i + 1) begin
-                storage[i] = 0;
-            end
-        end
-        
         // Read logic.
         if (write_first) begin: gen_bram_wfirst
             for (i = 0; i < dbytes; i = i + 1) begin
@@ -69,11 +69,6 @@ module raw_block_ram#(
         end
         
         // Write logic.
-        always @(posedge clk) begin
-            if (we != 0) begin
-                $strobe("[%x] = %x", addr, storage[addr]);
-            end
-        end
         for (i = 0; i < dbytes; i = i + 1) begin
             always @(posedge clk) begin
                 if (we[i]) begin
@@ -82,4 +77,23 @@ module raw_block_ram#(
             end
         end
     endgenerate
+    
+    // Displaying logic.
+    logic[dbits-1:0] smask;
+    generate
+        for (i = 0; i < dbytes; i = i + 1) begin
+            always @(*) begin
+                if (we[i]) begin
+                    smask[(i+1)*blen-1:i*blen] = wdata[(i+1)*blen-1:i*blen];
+                end else begin
+                    smask[(i+1)*blen-1:i*blen] = storage[addr][(i+1)*blen-1:i*blen];
+                end
+            end
+        end
+    endgenerate
+    always @(posedge clk) begin
+        if (we != 0) begin
+            $display("[%x] = %x", addr, smask);
+        end
+    end
 endmodule
