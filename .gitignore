@@ -1,5 +1,6 @@
 *__pycache__
 riscv-spec-*.pdf
+*/*_xpr
 *_dev/*.cache
 *_dev/*.sim
 *_dev/*.runs
