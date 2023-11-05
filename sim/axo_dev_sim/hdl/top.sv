@@ -11,5 +11,6 @@
 module top(
     input  logic clk
 );
-    main main(clk, 0);
+    wire ready, txd;
+    main main(clk, 0, ready, clk, txd, 1);
 endmodule

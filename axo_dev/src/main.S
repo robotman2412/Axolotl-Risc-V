@@ -17,3 +17,20 @@ isr:
     j halt
     
     nop
+
+
+
+    .section ".rodata"
+thing:
+    .word 0xdeadbeef
+
+
+
+    .section ".data"
+thing2:
+    .word 0xf00dbabe
+
+
+
+    .section ".bss"
+    .lcomm thing3, 4

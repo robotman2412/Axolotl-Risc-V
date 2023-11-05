@@ -66,7 +66,7 @@ module axo_regfile#(
             for (i = 1; i < 32; i=i+1) begin
                 data[i] <= 0;
             end
-        end else if (clk) begin
+        end else begin
             // Except for `x0`, write handler.
             if (rd != 0 && we) begin
                 data[rd] <= din;

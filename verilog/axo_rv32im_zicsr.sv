@@ -32,7 +32,7 @@
         0x340   mscratch
         0x341   mepc
         0x342   mcause
-        0x343   mtval (0)
+        0x343   mtval       (0)
         
         0xf11   mvendorid   (0)
         0xf12   marchid     (0)

@@ -18,29 +18,21 @@ interface axo_mem_bus#(
     parameter       alen = 32
 );
     // CPU -> MEM: Read enable.
-    (* mark_debug = "true" *)
     logic           re;
     // CPU -> MEM: Write enable.
-    (* mark_debug = "true" *)
     logic           we;
     // CPU -> MEM: Log2 of access size.
-    (* mark_debug = "true" *)
     logic[1:0]      asize;
     // CPU -> MEM: Memory address.
-    (* mark_debug = "true" *)
     logic[alen-1:0] addr;
     // CPU -> MEM: Write data.
-    (* mark_debug = "true" *)
     logic[dlen-1:0] wdata;
     
     // MEM -> CPU: Ready to transfer.
-    (* mark_debug = "true" *)
     logic           ready;
     // MEM -> CPU: Error.
-    (* mark_debug = "true" *)
     logic           error;
     // MEM -> CPU: Read data.
-    (* mark_debug = "true" *)
     logic[dlen-1:0] rdata;
     
     // Directions from CPU perspective.
@@ -109,13 +101,6 @@ module axo_mem_demux#(
             assign next_cpu[i] = (arbiter[i] || arbiter[i+cpus]) && (cpu_ports[i].re || cpu_ports[i].we);
         end
     endgenerate
-    
-    // logic[cpus-1:0] next_cpu;
-    // generate
-    //     for (i = 0; i < cpus; i = i + 1) begin
-    //         assign next_cpu[i] = arbiter[i] && (cpu_ports[i].re || cpu_ports[i].we);
-    //     end
-    // endgenerate
     
     // Arbitration at negedge, when RE and WE are stable.
     always @(negedge clk) begin
