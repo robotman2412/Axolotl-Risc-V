@@ -1,4 +1,9 @@
 
+# Superseded by Boa³²
+Axo32 has critical problems in the memory architecture that essentially require a re-design but because I already got code execution, I decided to keep it around.
+
+### [Go to Boa³², my second attempt at RISC-V](https://github.com/robotman2412/boa-risc-v)
+
 # Architecture summary
 
 This document describes a summary of how I will design the CPU core.
@@ -47,7 +52,7 @@ If I have enough spare time, this would evolve up to implementing supervisor mod
 | Memory protection         | No
 | Virtual memory            | No
 
-## Minimum viable product
+## ~~Minimum viable product~~
 | Feature                   | Implementation
 | :------------------------ | :-------------
 | Instruction set           | RV32IM
@@ -60,7 +65,7 @@ If I have enough spare time, this would evolve up to implementing supervisor mod
 | Memory protection         | Yes
 | Virtual memory            | No
 
-## Stretch goals
+## ~~Stretch goals~~
 | Feature                   | Implementation
 | :------------------------ | :-------------
 | Instruction set           | RV32IM
@@ -93,12 +98,6 @@ The EX stage will have a multi-purpose ALU, the data bus, the CSR regfile and an
 
 Axo32 will have a branch predictor to decrease latency on branch instructions.
 The branch predictor is stateless; any forward branch is predicted untaken while any backward branch is predicted taken.
-
-# IF stage
-
-# ID stage
-
-# EX stage
 
 # Pipeline hazard avoidance
 

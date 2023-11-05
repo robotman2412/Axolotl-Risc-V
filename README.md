@@ -1,4 +1,9 @@
 
+# Superseded by Boa³²
+Axo32 has critical problems in the memory architecture that essentially require a re-design but because I already got code execution, I decided to keep it around.
+
+### [Go to Boa³², my second attempt at RISC-V](https://github.com/robotman2412/boa-risc-v)
+
 # Axolotl³²: An implementation of RV32
 Axolotl³² is my first implementation of an ISA not of my own design.
 The main reason for this project is that I want to have a C compiler for my CPU projects,
