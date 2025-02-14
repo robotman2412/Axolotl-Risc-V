@@ -1,8 +1,12 @@
 
-# Superseded by Boa³²
+# Superseded by Boa and Axo2
 Axo32 has critical problems in the memory architecture that essentially require a re-design but because I already got code execution, I decided to keep it around.
 
-### [Go to Boa³², my second attempt at RISC-V](https://github.com/robotman2412/boa-risc-v)
+Two years after this project, a successor is now in the works: "Axo2".
+"Axo" will refer to size-optimized CPUs and "Boa" will refer to a balance of performance and size from now on.
+
+### [Go to Axo2, the intended successor](https://github.com/robotman2412/Axolotl2-RISC-V)
+### [Go to Boa, my second RISC-V CPU](https://github.com/robotman2412/boa-risc-v)
 
 # Axolotl³²: An implementation of RV32
 Axolotl³² is my first implementation of an ISA not of my own design.
@@ -13,7 +17,7 @@ Also, I'm like, totally going to make a simple RTOS for it.
 
 # Specifications
 
-Axolotl³² implements RV32 from the Risc-V specification:
+Axolotl³² implements RV32 from the RISC-V specification:
 - [Specifications page](https://riscv.org/technical/specifications/)
 - [Document link](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf)
 
